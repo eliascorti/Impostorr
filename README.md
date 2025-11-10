@@ -17,14 +17,20 @@ Puedes reiniciar la partida en cualquier momento con el botón **Nueva ronda**.
 
 ## Jugar en línea
 
-Además del modo clásico en un solo dispositivo, la página ofrece un modo en línea que permite crear una sala con un código compatible con móviles y PC:
+Además del modo clásico en un solo dispositivo, la página ofrece un modo en línea que ahora se apoya en el backend Socket.IO incluido en este repositorio:
 
-1. Selecciona **En línea** en el selector de modo.
-2. Como anfitrión, toca **Crear sala** y genera un código único. Compártelo con tus amigos y espera a que se conecten (necesitas al menos tres personas activas para iniciar la ronda).
-3. Desde otros dispositivos, abre la página, elige **En línea → Unirse a sala**, escribe el código y tu nombre. Cada jugador verá su palabra en privado desde su celular y podrá votar desde ahí.
-4. El anfitrión controla el inicio de las rondas y puede abrir votaciones sucesivas hasta atrapar al impostor o quedar solo dos jugadores. Los resultados y eliminaciones se sincronizan automáticamente.
+1. Levanta el servidor (`server.js`) en tu máquina o en un hosting compatible (Render, Railway, etc.).
+2. Antes de cargar `script.js`, define `window.IMPOSTORX_SOCKET_URL` apuntando a la URL pública de ese backend. Si no lo haces y estás en `localhost`, el frontend intentará conectarse automáticamente a `http://localhost:3000`.
+3. En la interfaz, selecciona **En línea**. Como anfitrión, toca **Crear sala** y genera un código único. Compártelo con tus amigos y espera a que se conecten (necesitas al menos tres personas activas para iniciar la ronda).
+4. Desde otros dispositivos, abre la página, elige **En línea → Unirse a sala**, escribe el código y tu nombre. Cada jugador verá su palabra en privado desde su celular y podrá votar desde ahí.
+5. El anfitrión controla el inicio de las rondas y puede abrir votaciones sucesivas hasta atrapar al impostor o quedar solo dos jugadores. Los resultados y eliminaciones se sincronizan automáticamente usando eventos de Socket.IO.
 
-> **Nota:** el modo en línea original utiliza PeerJS para crear una conexión directa entre los navegadores. Como alternativa para redes con restricciones WebRTC, ahora puedes levantar el backend Express + Socket.IO descrito más abajo para manejar salas remotas.
+```html
+<script>
+  window.IMPOSTORX_SOCKET_URL = 'https://tu-backend-impostorx.onrender.com';
+</script>
+<script src="script.js"></script>
+```
 
 ## Backend Node + Express con Socket.IO
 

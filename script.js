@@ -1025,6 +1025,479 @@ const categories = {
   ]
 };
 
+function resolveSocketUrl(options = {}) {
+  if (options && options.socketUrl) {
+    return options.socketUrl;
+  }
+  if (typeof window !== 'undefined') {
+    if (window.IMPOSTORX_SOCKET_URL) {
+      return window.IMPOSTORX_SOCKET_URL;
+    }
+    if (window.location) {
+      const { protocol, hostname } = window.location;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return `${protocol}//${hostname}:3000`;
+      }
+    }
+  }
+  return null;
+}
+
+class SocketDataConnection {
+  constructor(peerInstance, peerId, role) {
+    this.peer = peerId || null;
+    this.open = false;
+    this._peerInstance = peerInstance;
+    this._role = role || 'host';
+    this._handlers = {
+      open: [],
+      data: [],
+      close: [],
+      error: []
+    };
+  }
+
+  on(event, handler) {
+    if (!this._handlers[event]) {
+      this._handlers[event] = [];
+    }
+    this._handlers[event].push(handler);
+  }
+
+  _emit(event, ...args) {
+    const handlers = this._handlers[event];
+    if (!handlers) {
+      return;
+    }
+    handlers.forEach((handler) => {
+      try {
+        handler(...args);
+      } catch (error) {
+        console.error(error);
+      }
+    });
+  }
+
+  _handleOpen() {
+    if (!this.open) {
+      this.open = true;
+      this._emit('open');
+    }
+  }
+
+  _handleData(payload) {
+    this._emit('data', payload);
+  }
+
+  _handleClose(reason) {
+    if (this.open) {
+      this.open = false;
+    }
+    this._emit('close', reason);
+  }
+
+  _handleError(error) {
+    this._emit('error', error);
+  }
+
+  send(payload) {
+    if (!this._peerInstance || !this._peerInstance.socket || !this._peerInstance.roomCode) {
+      return;
+    }
+    const message = {
+      senderId: this._peerInstance.socket.id,
+      payload
+    };
+    if (this.peer) {
+      message.targetId = this.peer;
+    }
+    this._peerInstance.socket.emit('enviarMensaje', {
+      codigo: this._peerInstance.roomCode,
+      mensaje: message
+    });
+  }
+
+  close() {
+    if (!this.open) {
+      return;
+    }
+    this.open = false;
+    if (this._peerInstance && this._peerInstance.mode === 'player' && this._peerInstance.socket) {
+      try {
+        this._peerInstance.socket.emit('salirSala');
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    this._emit('close');
+  }
+}
+
+class SocketPeer {
+  constructor(id, options = {}) {
+    this.options = options || {};
+    this.mode = this.options.mode || null;
+    this.hostName = this.options.hostName || '';
+    this.joinName = this.options.joinName || '';
+    this.socketUrl = resolveSocketUrl(this.options);
+    this.socket = null;
+    this.roomCode = null;
+    this.hostId = null;
+    this.id = null;
+    this.destroyed = false;
+    this.pendingJoin = this.options.joinCode
+      ? { codigo: this.options.joinCode, nombre: this.options.joinName || this.joinName || null }
+      : null;
+    this.pendingConnection = null;
+    this.playerConnection = null;
+    this.connections = new Map();
+    this._eventHandlers = {
+      open: [],
+      connection: [],
+      error: []
+    };
+    this._pendingHostCreate = false;
+    this._pendingJoinEmit = false;
+
+    if (this.socketUrl && typeof io !== 'undefined') {
+      this._createSocket();
+    }
+
+    if (this.mode === 'host' || (!this.mode && this.options.hostName !== undefined)) {
+      this.createRoom(this.hostName);
+    } else if (this.pendingJoin) {
+      this.prepareJoin(this.pendingJoin.codigo, this.pendingJoin.nombre);
+    }
+  }
+
+  on(event, handler) {
+    if (!this._eventHandlers[event]) {
+      this._eventHandlers[event] = [];
+    }
+    this._eventHandlers[event].push(handler);
+  }
+
+  _emit(event, ...args) {
+    const handlers = this._eventHandlers[event];
+    if (!handlers) {
+      return;
+    }
+    handlers.forEach((handler) => {
+      try {
+        handler(...args);
+      } catch (error) {
+        console.error(error);
+      }
+    });
+  }
+
+  _createSocket() {
+    if (typeof io === 'undefined' || !this.socketUrl) {
+      return;
+    }
+    this.socket = io(this.socketUrl, {
+      transports: ['websocket'],
+      forceNew: true,
+      autoConnect: true
+    });
+    this._bindSocketEvents();
+  }
+
+  _bindSocketEvents() {
+    if (!this.socket) {
+      return;
+    }
+    this.socket.on('connect', () => this._handleSocketConnect());
+    this.socket.on('disconnect', () => this._handleSocketDisconnect());
+    this.socket.on('salaCreada', (data) => this._handleSalaCreada(data));
+    this.socket.on('jugadorUnido', (data) => this._handleJugadorUnido(data));
+    this.socket.on('mensaje', (data) => this._handleMensaje(data));
+    this.socket.on('salir', (data) => this._handleSalir(data));
+    this.socket.on('salaCerrada', (data) => this._handleSalaCerrada(data));
+    this.socket.on('errorSala', (data) => this._handleErrorSala(data));
+    this.socket.on('connect_error', (error) => this._emit('error', error));
+  }
+
+  _ensureSocket() {
+    if (this.socket) {
+      return true;
+    }
+    this.socketUrl = resolveSocketUrl(this.options);
+    if (!this.socketUrl) {
+      this._emit('error', new Error('No se configuró la URL del servidor Socket.IO.'));
+      return false;
+    }
+    if (typeof io === 'undefined') {
+      this._emit('error', new Error('La librería de Socket.IO no está disponible.'));
+      return false;
+    }
+    this._createSocket();
+    return !!this.socket;
+  }
+
+  createRoom(name) {
+    this.mode = 'host';
+    if (typeof name === 'string') {
+      this.hostName = name;
+    }
+    if (!this._ensureSocket()) {
+      return;
+    }
+    const emitCreate = () => {
+      if (!this.socket) {
+        return;
+      }
+      this.socket.emit('crearSala', { nombre: this.hostName || null });
+      this._pendingHostCreate = false;
+    };
+    if (this.socket.connected) {
+      emitCreate();
+    } else {
+      this._pendingHostCreate = true;
+      this.socket.once('connect', emitCreate);
+      this.socket.connect();
+    }
+  }
+
+  prepareJoin(roomCode, name) {
+    this.mode = 'player';
+    this.pendingJoin = {
+      codigo: roomCode,
+      nombre: typeof name === 'string' ? name : this.joinName || null
+    };
+    this.joinName = this.pendingJoin.nombre || '';
+    if (!this._ensureSocket()) {
+      return;
+    }
+    const emitJoin = () => {
+      if (!this.socket) {
+        return;
+      }
+      this.socket.emit('unirseSala', this.pendingJoin);
+      this._pendingJoinEmit = false;
+    };
+    if (this.socket.connected) {
+      emitJoin();
+    } else {
+      this._pendingJoinEmit = true;
+      this.socket.once('connect', emitJoin);
+      this.socket.connect();
+    }
+  }
+
+  connect(roomCode) {
+    this.prepareJoin(roomCode, this.joinName);
+    const connection = new SocketDataConnection(this, this.hostId, 'player');
+    this.pendingConnection = connection;
+    this.playerConnection = connection;
+    return connection;
+  }
+
+  broadcast(payload) {
+    if (this.mode !== 'host' || !this.socket || !this.roomCode) {
+      return;
+    }
+    this.socket.emit('enviarMensaje', {
+      codigo: this.roomCode,
+      mensaje: {
+        senderId: this.socket.id,
+        payload
+      }
+    });
+  }
+
+  destroy() {
+    if (this.destroyed) {
+      return;
+    }
+    this.destroyed = true;
+    this._pendingHostCreate = false;
+    this._pendingJoinEmit = false;
+    if (this.socket) {
+      try {
+        this.socket.emit('salirSala');
+      } catch (error) {
+        console.error(error);
+      }
+      try {
+        this.socket.disconnect();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+    this.connections.forEach((connection) => {
+      connection._handleClose('destroyed');
+    });
+    this.connections.clear();
+    if (this.playerConnection) {
+      this.playerConnection._handleClose('destroyed');
+      this.playerConnection = null;
+    }
+  }
+
+  _handleSocketConnect() {
+    if (this.destroyed) {
+      return;
+    }
+    if (this.mode === 'host' && !this.roomCode && this._pendingHostCreate) {
+      this.socket.emit('crearSala', { nombre: this.hostName || null });
+      this._pendingHostCreate = false;
+    } else if (this.mode === 'player' && this.pendingJoin && this._pendingJoinEmit) {
+      this.socket.emit('unirseSala', this.pendingJoin);
+      this._pendingJoinEmit = false;
+    }
+  }
+
+  _handleSocketDisconnect() {
+    if (this.destroyed) {
+      return;
+    }
+    this.connections.forEach((connection) => {
+      connection._handleClose('disconnect');
+    });
+    if (this.playerConnection) {
+      this.playerConnection._handleClose('disconnect');
+    }
+  }
+
+  _handleSalaCreada(data) {
+    if (this.destroyed || this.mode !== 'host') {
+      return;
+    }
+    this.roomCode = data?.codigo || null;
+    this.id = this.roomCode;
+    this.hostId = data?.hostId || (this.socket ? this.socket.id : null);
+    this._emit('open', this.roomCode);
+  }
+
+  _handleJugadorUnido(data) {
+    if (this.destroyed || !data) {
+      return;
+    }
+    if (this.mode === 'host') {
+      if (!this.roomCode || data.codigo !== this.roomCode) {
+        return;
+      }
+      const playerId = data.jugador?.id;
+      if (!playerId) {
+        return;
+      }
+      let connection = this.connections.get(playerId);
+      if (!connection) {
+        connection = new SocketDataConnection(this, playerId, 'host');
+        this.connections.set(playerId, connection);
+        this._emit('connection', connection);
+      }
+      connection._handleOpen();
+    } else if (this.mode === 'player' && data.jugador?.id === (this.socket ? this.socket.id : null)) {
+      this.roomCode = data.codigo;
+      this.id = this.socket ? this.socket.id : null;
+      this.hostId = data.hostId || this.hostId;
+      if (this.pendingConnection) {
+        this.pendingConnection.peer = this.hostId;
+        this.pendingConnection._handleOpen();
+        this.pendingConnection = null;
+      }
+      if (this.playerConnection) {
+        this.playerConnection.peer = this.hostId;
+      }
+      this.pendingJoin = null;
+    }
+  }
+
+  _handleMensaje(data) {
+    if (this.destroyed || !data || !data.mensaje) {
+      return;
+    }
+    if (!this.roomCode || data.codigo !== this.roomCode) {
+      return;
+    }
+    const { senderId, targetId = null, payload } = data.mensaje;
+    if (this.mode === 'host') {
+      if (!senderId || (this.socket && senderId === this.socket.id)) {
+        return;
+      }
+      let connection = this.connections.get(senderId);
+      if (!connection) {
+        connection = new SocketDataConnection(this, senderId, 'host');
+        this.connections.set(senderId, connection);
+        this._emit('connection', connection);
+      }
+      connection._handleOpen();
+      if (payload !== undefined) {
+        connection._handleData(payload);
+      }
+    } else if (this.mode === 'player') {
+      if (targetId && this.socket && targetId !== this.socket.id) {
+        return;
+      }
+      if (!this.hostId && senderId) {
+        this.hostId = senderId;
+      }
+      if (this.playerConnection) {
+        if (!this.playerConnection.peer) {
+          this.playerConnection.peer = this.hostId || senderId || null;
+        }
+        this.playerConnection._handleOpen();
+        if (payload !== undefined) {
+          this.playerConnection._handleData(payload);
+        }
+      }
+    }
+  }
+
+  _handleSalir(data) {
+    if (this.destroyed || !data) {
+      return;
+    }
+    if (!this.roomCode || data.code !== this.roomCode) {
+      return;
+    }
+    if (this.mode === 'host') {
+      const connection = this.connections.get(data.jugadorId);
+      if (connection) {
+        connection._handleClose('leave');
+        this.connections.delete(data.jugadorId);
+      }
+    }
+  }
+
+  _handleSalaCerrada(data) {
+    if (this.destroyed || !data) {
+      return;
+    }
+    if (!this.roomCode || data.code !== this.roomCode) {
+      return;
+    }
+    this.connections.forEach((connection) => {
+      connection._handleClose(data.motivo || 'sala-cerrada');
+    });
+    this.connections.clear();
+    if (this.playerConnection) {
+      this.playerConnection._handleClose(data.motivo || 'sala-cerrada');
+    }
+    this._emit('error', new Error(data.motivo || 'La sala se cerró.'));
+  }
+
+  _handleErrorSala(data) {
+    const error = new Error((data && data.mensaje) || 'Error en la sala en línea.');
+    this._emit('error', error);
+    this.connections.forEach((connection) => {
+      connection._handleError(error);
+    });
+    if (this.playerConnection) {
+      this.playerConnection._handleError(error);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.SocketPeer = SocketPeer;
+  if (typeof window.Peer === 'undefined') {
+    window.Peer = SocketPeer;
+  }
+}
+
 const setupForm = document.getElementById('setup-form');
 const playersInput = document.getElementById('players');
 const playerNamesContainer = document.getElementById('player-names');
@@ -2125,11 +2598,6 @@ function handleHostDisconnect(peerId) {
 }
 
 function initializeHostPeer() {
-  if (typeof Peer === 'undefined') {
-    pushMessage(hostMessages, 'No se pudo cargar la librería de conexión en línea.', 'error');
-    return;
-  }
-
   const displayName = hostNameInput ? hostNameInput.value.trim() : '';
   onlineState.hostName = displayName;
 
@@ -2147,8 +2615,21 @@ function initializeHostPeer() {
   }
 
   try {
-    const peer = new Peer(undefined, { debug: 2 });
+    if (typeof Peer === 'undefined') {
+      throw new Error('Socket.IO o la clase Peer no están disponibles.');
+    }
+
+    const peerOptions = { debug: 2 };
+    const peer = new Peer(undefined, peerOptions);
     onlineState.peer = peer;
+
+    if (typeof peer.createRoom === 'function') {
+      peer.createRoom(displayName);
+    }
+
+    if (!peer.socket) {
+      throw new Error('No se pudo iniciar la conexión con el servidor de salas. Verificá la URL configurada.');
+    }
 
     peer.on('open', (id) => {
       onlineState.roomCode = id;
@@ -2193,7 +2674,7 @@ function initializeHostPeer() {
     });
   } catch (error) {
     console.error(error);
-    pushMessage(hostMessages, 'No se pudo inicializar la sala en línea.', 'error');
+    pushMessage(hostMessages, error && error.message ? error.message : 'No se pudo inicializar la sala en línea.', 'error');
     if (createRoomButton) {
       createRoomButton.disabled = false;
       createRoomButton.textContent = 'Generar código de sala';
@@ -2777,30 +3258,40 @@ function joinRoom(event) {
   }
 
   try {
+    if (typeof Peer === 'undefined') {
+      throw new Error('Socket.IO o la clase Peer no están disponibles.');
+    }
+
     const peer = new Peer(undefined, { debug: 1 });
     onlineState.peer = peer;
 
-    peer.on('open', () => {
-      const connection = peer.connect(code, { reliable: true });
-      onlineState.playerConnection = connection;
+    if (typeof peer.prepareJoin === 'function') {
+      peer.prepareJoin(code, name);
+    }
 
-      connection.on('open', () => {
-        connection.send({ type: 'join', name });
-        pushMessage(joinFeedback, 'Conexión establecida. Esperando confirmación del anfitrión...', 'info');
-      });
+    if (!peer.socket) {
+      throw new Error('No se pudo conectar con el servidor de salas. Verificá la URL configurada.');
+    }
 
-      connection.on('data', (payload) => {
-        handlePlayerData(payload);
-      });
+    const connection = peer.connect(code, { reliable: true });
+    onlineState.playerConnection = connection;
 
-      connection.on('close', () => {
-        handlePlayerDisconnected('La sala se cerró o perdiste la conexión.', 'warning');
-      });
+    connection.on('open', () => {
+      connection.send({ type: 'join', name });
+      pushMessage(joinFeedback, 'Conexión establecida. Esperando confirmación del anfitrión...', 'info');
+    });
 
-      connection.on('error', (error) => {
-        console.error(error);
-        handlePlayerDisconnected('Hubo un problema con la conexión a la sala.', 'error');
-      });
+    connection.on('data', (payload) => {
+      handlePlayerData(payload);
+    });
+
+    connection.on('close', () => {
+      handlePlayerDisconnected('La sala se cerró o perdiste la conexión.', 'warning');
+    });
+
+    connection.on('error', (error) => {
+      console.error(error);
+      handlePlayerDisconnected('Hubo un problema con la conexión a la sala.', 'error');
     });
 
     peer.on('error', (error) => {
@@ -2809,7 +3300,7 @@ function joinRoom(event) {
     });
   } catch (error) {
     console.error(error);
-    pushMessage(joinFeedback, 'No se pudo crear la conexión local.', 'error');
+    pushMessage(joinFeedback, error && error.message ? error.message : 'No se pudo crear la conexión local.', 'error');
   }
 }
 

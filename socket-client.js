@@ -1,53 +1,49 @@
-import { io } from "socket.io-client";
+import { io } from 'socket.io-client';
 
-// 🔹 URL del backend (Render)
-const SERVER_URL = "https://impostorr.onrender.com"; // 👈 Usá el dominio real del backend
-
-// 🔹 Inicialización del socket
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3000';
 const socket = io(SERVER_URL, {
   autoConnect: true,
-  transports: ["websocket"], // fuerza WebSocket, evita polling
+  transports: ['websocket']
 });
 
-// 🔹 Logger simple para consola
+// Utilidades de logging
 function log(event, payload) {
-  console.log(`[Cliente] ${event}`, payload || "");
+  console.log(`[Cliente] ${event}`, payload);
 }
 
-// -----------------------------
-// EVENTOS DEL SERVIDOR
-// -----------------------------
-socket.on("connect", () => log("✅ Conectado", { id: socket.id }));
-socket.on("disconnect", (reason) => log("❌ Desconectado", { reason }));
+socket.on('connect', () => {
+  log('Conectado', { id: socket.id });
+});
 
-socket.on("salaCreada", (data) => log("🎮 Sala Creada", data));
-socket.on("jugadorUnido", (data) => log("👥 Jugador Unido", data));
-socket.on("mensaje", (data) => log("💬 Mensaje", data));
-socket.on("salir", (data) => log("🚪 Jugador Salió", data));
-socket.on("salaCerrada", (data) => log("🔒 Sala Cerrada", data));
-socket.on("errorSala", (data) => log("⚠️ Error de Sala", data));
+socket.on('disconnect', (reason) => {
+  log('Desconectado', { reason });
+});
 
-// -----------------------------
-// FUNCIONES DE CLIENTE
-// -----------------------------
+socket.on('salaCreada', (data) => log('salaCreada', data));
+socket.on('jugadorUnido', (data) => log('jugadorUnido', data));
+socket.on('mensaje', (data) => log('mensaje', data));
+socket.on('salir', (data) => log('salir', data));
+socket.on('salaCerrada', (data) => log('salaCerrada', data));
+socket.on('errorSala', (data) => log('errorSala', data));
+
 export function crearSala(nombre) {
-  socket.emit("crearSala", { nombre });
-  log("crearSala emitido", { nombre });
+  socket.emit('crearSala', { nombre });
+  log('crearSala emitido', { nombre });
 }
 
 export function unirseSala(codigo, nombre) {
-  socket.emit("unirseSala", { codigo, nombre });
-  log("unirseSala emitido", { codigo, nombre });
+  socket.emit('unirseSala', { codigo, nombre });
+  log('unirseSala emitido', { codigo, nombre });
 }
 
 export function enviarMensaje(codigo, mensaje, autor) {
-  socket.emit("enviarMensaje", { codigo, mensaje, autor });
-  log("enviarMensaje emitido", { codigo, mensaje, autor });
+  socket.emit('enviarMensaje', { codigo, mensaje, autor });
+  log('enviarMensaje emitido', { codigo, mensaje, autor });
 }
 
 export function salirSala() {
-  socket.emit("salirSala");
-  log("salirSala emitido");
+  socket.emit('salirSala');
+  log('salirSala emitido');
 }
 
 export default socket;
