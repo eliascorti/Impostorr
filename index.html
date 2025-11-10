@@ -202,10 +202,15 @@
     </div>
 
     <!-- Define la URL de tu servidor Socket.IO aquí -->
+    <!-- Carga Socket.IO (sin 'integrity' para evitar bloqueos) -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+
+    <!-- Define la URL de tu servidor Socket.IO -->
     <script>
       window.IMPOSTORX_SOCKET_URL = "https://impostorr.onrender.com";
     </script>
 
+    <!-- Tu código del juego -->
     <script src="script.js"></script>
   </body>
 </html>
