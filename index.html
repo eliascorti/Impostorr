@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Impostorr - Juego del impostor</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <h1>Impostorr</h1>
+      <p class="tagline">El juego social para descubrir al impostor sin revelar la palabra secreta.</p>
+    </header>
+
+    <main>
+      <section id="setup" class="card">
+        <h2>Configurar partida</h2>
+        <form id="setup-form">
+          <label for="players">Cantidad de jugadores</label>
+          <input type="number" id="players" min="3" max="20" value="5" required />
+
+          <div class="names-field">
+            <span class="field-label">Nombres de los jugadores</span>
+            <div id="player-names" class="player-names"></div>
+          </div>
+
+          <label for="category">Categoría</label>
+          <select id="category" required></select>
+
+          <label for="language">Modo de palabra</label>
+          <div class="radio-group">
+            <label>
+              <input type="radio" name="mode" value="standard" checked /> Palabra única para todos
+            </label>
+            <label>
+              <input type="radio" name="mode" value="double" /> Dos palabras similares (modo difícil)
+            </label>
+          </div>
+
+          <button type="submit" class="primary">Comenzar ronda</button>
+        </form>
+      </section>
+
+      <section id="round" class="card hidden" aria-live="polite">
+        <div class="round-header">
+          <h2 id="round-title">Turno del jugador</h2>
+          <button id="reset" class="secondary">Nueva ronda</button>
+        </div>
+        <p id="instructions">
+          Pasa el dispositivo al jugador <span id="current-player">1</span>. Cuando esté listo, presiona "Mostrar" para
+          revelar su rol. Después presiona "Ocultar" y pasa el dispositivo.
+        </p>
+
+        <div class="reveal">
+          <button id="toggle-word" class="primary">Mostrar</button>
+          <div id="word" class="word" aria-live="assertive"></div>
+        </div>
+
+        <div class="round-info">
+          <p><strong>Categoría:</strong> <span id="round-category"></span></p>
+        </div>
+
+        <div id="voting" class="voting">
+          <h3>Votación</h3>
+          <p id="vote-intro">Cuando terminen de debatir, inicien la votación secreta.</p>
+          <button id="start-vote" type="button" class="primary">Comenzar votación</button>
+
+          <div id="vote-panel" class="hidden">
+            <p id="vote-instructions"></p>
+            <form id="vote-form">
+              <label for="vote-choice" id="vote-label">Selecciona a quién acusas</label>
+              <select id="vote-choice" required></select>
+              <button type="submit" class="primary">Registrar voto</button>
+            </form>
+          </div>
+
+          <div id="vote-result" class="hidden">
+            <p id="vote-summary" class="vote-summary"></p>
+            <p id="vote-outcome" class="vote-outcome"></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card about">
+        <h2>Cómo jugar</h2>
+        <ol>
+          <li>Elige la cantidad de jugadores y la categoría con la que quieren jugar.</li>
+          <li>Una vez iniciada la ronda, pasa el dispositivo. Cada jugador presiona "Mostrar" para ver su palabra.</li>
+          <li>Todos menos uno verán la misma palabra. A la persona que le toque "Impostor" deberá fingir saberla.</li>
+          <li>Conversen dando pistas sin revelar la palabra exacta. Al final voten quién creen que es el impostor.</li>
+          <li>En modo difícil aparecen dos palabras muy parecidas: la mayoría verá una y una minoría la otra.</li>
+        </ol>
+      </section>
+    </main>
+
+    <footer>
+      <p>Hecho con ❤ para reuniones inolvidables.</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
