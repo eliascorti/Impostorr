@@ -1,0 +1,267 @@
+:root {
+  --bg: #0f172a;
+  --card: #1e293b;
+  --accent: #38bdf8;
+  --accent-dark: #0ea5e9;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  font-size: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at top, #1d4ed8 0%, #0f172a 50%);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.hero {
+  text-align: center;
+  padding-top: 1rem;
+}
+
+.hero h1 {
+  font-size: clamp(2.5rem, 5vw, 3.5rem);
+  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tagline {
+  color: var(--muted);
+  margin-top: 0.75rem;
+  font-size: 1.1rem;
+}
+
+.card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 18px;
+  padding: 2rem;
+  box-shadow: 0 25px 60px rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+}
+
+.card h2 {
+  margin-top: 0;
+  font-size: 1.6rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+input[type='number'],
+input[type='text'],
+select {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--text);
+  font-size: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.player-names {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0;
+}
+
+.names-field {
+  margin-bottom: 1.5rem;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+.player-name input {
+  margin-bottom: 0;
+}
+
+button {
+  font-family: inherit;
+  font-weight: 600;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+button.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  color: #0f172a;
+  border: none;
+  padding: 0.85rem 1.8rem;
+  font-size: 1rem;
+  box-shadow: 0 12px 30px rgba(56, 189, 248, 0.3);
+}
+
+button.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 35px rgba(56, 189, 248, 0.38);
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.9rem;
+}
+
+button.secondary:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.hidden {
+  display: none;
+}
+
+.reveal {
+  margin: 2rem 0 1.5rem;
+  display: grid;
+  gap: 1.25rem;
+  justify-items: center;
+}
+
+.word {
+  min-height: 64px;
+  min-width: 220px;
+  border-radius: 18px;
+  border: 1px dashed rgba(148, 163, 184, 0.6);
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: rgba(15, 23, 42, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.2);
+}
+
+.word.impostor {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.4);
+}
+
+.word-visual {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+}
+
+.word-visual img {
+  width: min(320px, 100%);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px -25px rgba(15, 23, 42, 0.9);
+  object-fit: cover;
+}
+
+.word-visual p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.round-info {
+  display: grid;
+  gap: 0.6rem;
+  color: var(--muted);
+}
+
+.round-info strong {
+  color: var(--text);
+}
+
+.voting {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  display: grid;
+  gap: 1.25rem;
+}
+
+.voting h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.voting form {
+  display: grid;
+  gap: 1rem;
+}
+
+.voting button.primary {
+  justify-self: start;
+}
+
+.vote-summary {
+  font-weight: 600;
+}
+
+.vote-outcome {
+  color: #facc15;
+  font-weight: 600;
+}
+
+.about ol {
+  margin: 0;
+  padding-left: 1.3rem;
+  display: grid;
+  gap: 0.8rem;
+  color: var(--muted);
+}
+
+footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+  .app {
+    padding: 1.8rem 1rem 3rem;
+  }
+
+  .card {
+    padding: 1.6rem;
+  }
+
+  .word {
+    font-size: 1.5rem;
+    min-width: 180px;
+    padding: 1.1rem;
+  }
+}
