@@ -803,6 +803,7 @@ const categories = {
 
 const setupForm = document.getElementById('setup-form');
 const playersInput = document.getElementById('players');
+const playerNamesContainer = document.getElementById('player-names');
 const categorySelect = document.getElementById('category');
 const modeRadios = document.querySelectorAll("input[name='mode']");
 const setupSection = document.getElementById('setup');
@@ -814,13 +815,33 @@ let currentPlayerSpan = document.getElementById('current-player');
 const toggleWordButton = document.getElementById('toggle-word');
 const wordDisplay = document.getElementById('word');
 const roundCategory = document.getElementById('round-category');
-const roundSummary = document.getElementById('round-summary');
+
+const votingSection = document.getElementById('voting');
+const startVoteButton = document.getElementById('start-vote');
+const votePanel = document.getElementById('vote-panel');
+const voteIntro = document.getElementById('vote-intro');
+const voteInstructions = document.getElementById('vote-instructions');
+const voteForm = document.getElementById('vote-form');
+const voteLabel = document.getElementById('vote-label');
+const voteChoice = document.getElementById('vote-choice');
+const voteResult = document.getElementById('vote-result');
+const voteSummary = document.getElementById('vote-summary');
+const voteOutcome = document.getElementById('vote-outcome');
+
+startVoteButton.disabled = true;
 
 const state = {
   assignments: [],
   currentIndex: 0,
   revealed: false,
-  mode: 'standard'
+  mode: 'standard',
+  players: [],
+  impostorIndex: null,
+  minorityIndexes: new Set(),
+  votes: [],
+  votingIndex: 0,
+  majorityWord: null,
+  minorityWord: null
 };
 
 function populateCategories() {
@@ -831,6 +852,50 @@ function populateCategories() {
     option.textContent = `${name} (${categories[name].length})`;
     categorySelect.appendChild(option);
   }
+}
+
+function createPlayerInput(index) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'player-name';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.required = true;
+  input.maxLength = 30;
+  input.placeholder = `Jugador ${index + 1}`;
+  input.setAttribute('data-index', index);
+
+  wrapper.appendChild(input);
+  return wrapper;
+}
+
+function syncPlayerInputs(count) {
+  const existing = playerNamesContainer.querySelectorAll('input');
+  const currentCount = existing.length;
+
+  if (currentCount < count) {
+    for (let i = currentCount; i < count; i += 1) {
+      playerNamesContainer.appendChild(createPlayerInput(i));
+    }
+  } else if (currentCount > count) {
+    for (let i = currentCount - 1; i >= count; i -= 1) {
+      const toRemove = playerNamesContainer.querySelector(`input[data-index="${i}"]`);
+      if (toRemove) {
+        playerNamesContainer.removeChild(toRemove.parentElement);
+      }
+    }
+  }
+
+  playerNamesContainer.querySelectorAll('input').forEach((input, idx) => {
+    input.setAttribute('data-index', idx);
+    if (!input.value.trim()) {
+      input.placeholder = `Jugador ${idx + 1}`;
+    }
+  });
+}
+
+function getPlayerNames() {
+  return Array.from(playerNamesContainer.querySelectorAll('input')).map((input) => input.value.trim());
 }
 
 function getSelectedMode() {
@@ -851,18 +916,43 @@ function startRound(event) {
   const players = Math.max(3, parseInt(playersInput.value, 10));
   const category = categorySelect.value;
   const mode = getSelectedMode();
+  syncPlayerInputs(players);
+  const names = getPlayerNames();
 
   if (!category) {
     alert('Selecciona una categoría para comenzar.');
     return;
   }
 
+  if (names.length !== players) {
+    alert('Completa el nombre de cada jugador antes de iniciar.');
+    return;
+  }
+
+  if (names.some((name) => name.length === 0)) {
+    alert('Todos los jugadores necesitan un nombre para jugar de forma anónima.');
+    return;
+  }
+
+  const uniqueNames = new Set(names.map((name) => name.toLowerCase()));
+  if (uniqueNames.size !== names.length) {
+    alert('Cada jugador debe tener un nombre diferente para poder votar sin confusiones.');
+    return;
+  }
+
   state.mode = mode;
   state.currentIndex = 0;
   state.revealed = false;
+  state.players = names;
+  state.assignments = [];
+  state.impostorIndex = null;
+  state.minorityIndexes = new Set();
+  state.votes = [];
+  state.votingIndex = 0;
+  state.majorityWord = null;
+  state.minorityWord = null;
 
   const pool = categories[category];
-  let summaryText = '';
 
   if (mode === 'standard') {
     const secretWord = pool[Math.floor(Math.random() * pool.length)];
@@ -872,7 +962,8 @@ function startRound(event) {
       index === impostorIndex ? 'IMPOSTOR' : secretWord
     );
 
-    summaryText = `Palabra secreta: ${secretWord}. Hay 1 impostor.`;
+    state.impostorIndex = impostorIndex;
+    state.majorityWord = secretWord;
     roundTitle.textContent = 'Revelación de roles';
   } else {
     const [wordA, wordB] = shuffle([...pool]).slice(0, 2);
@@ -884,7 +975,14 @@ function startRound(event) {
     ];
     state.assignments = shuffle(assignments);
 
-    summaryText = `Palabra A: ${wordA} (mayoría). Palabra B: ${wordB} (minoría de ${minorityCount}).`;
+    state.majorityWord = wordA;
+    state.minorityWord = wordB;
+    state.minorityIndexes = new Set();
+    state.assignments.forEach((word, index) => {
+      if (word === wordB) {
+        state.minorityIndexes.add(index);
+      }
+    });
     roundTitle.textContent = 'Modo difícil: dos pistas';
   }
 
@@ -894,13 +992,22 @@ function startRound(event) {
   toggleWordButton.textContent = 'Mostrar';
   wordDisplay.textContent = '';
 
-  currentPlayerSpan.textContent = '1';
+  const firstPlayerName = state.players[0];
+  currentPlayerSpan.textContent = firstPlayerName;
   instructions.innerHTML =
-    'Pasa el dispositivo al jugador <span id="current-player">1</span>. Cuando esté listo, presiona "Mostrar" para revelar su rol. Después presiona "Ocultar" y pasa el dispositivo.';
+    `Pasa el dispositivo a <span id="current-player">${firstPlayerName}</span>. Cuando esté listo, presiona "Mostrar" para revelar su rol. Después presiona "Ocultar" y pasa el dispositivo.`;
   currentPlayerSpan = document.getElementById('current-player');
 
   roundCategory.textContent = category;
-  roundSummary.textContent = summaryText;
+
+  voteIntro.textContent = 'Cuando terminen de debatir, inicien la votación secreta.';
+  startVoteButton.disabled = true;
+  votePanel.classList.add('hidden');
+  voteResult.classList.add('hidden');
+  voteInstructions.textContent = '';
+  voteChoice.innerHTML = '';
+  voteSummary.textContent = '';
+  voteOutcome.textContent = '';
 }
 
 function handleToggle() {
@@ -910,13 +1017,13 @@ function handleToggle() {
 
   if (!state.revealed) {
     const role = state.assignments[state.currentIndex];
+    const playerName = state.players[state.currentIndex];
     wordDisplay.textContent = role;
     wordDisplay.classList.toggle('impostor', role === 'IMPOSTOR');
     toggleWordButton.textContent = 'Ocultar';
     state.revealed = true;
 
-    const playerNumber = state.currentIndex + 1;
-    instructions.innerHTML = `Jugador ${playerNumber}, memoriza tu palabra y presiona \"Ocultar\" antes de pasar el dispositivo.`;
+    instructions.innerHTML = `${playerName}, memoriza tu pista y presiona \"Ocultar\" antes de pasar el dispositivo.`;
   } else {
     wordDisplay.textContent = '';
     wordDisplay.classList.remove('impostor');
@@ -928,10 +1035,129 @@ function handleToggle() {
       toggleWordButton.disabled = true;
       instructions.textContent = 'Todos tienen su rol. ¡Comiencen a debatir y descubran al impostor!';
       roundTitle.textContent = '¡A jugar!';
+      startVoteButton.disabled = false;
+      voteIntro.textContent = 'Cuando estén listos, inicien la votación secreta para descubrir al impostor.';
     } else {
-      const playerNumber = state.currentIndex + 1;
-      instructions.innerHTML = `Pasa el dispositivo al jugador <span id="current-player">${playerNumber}</span> y presiona \"Mostrar\" cuando esté listo.`;
+      const playerName = state.players[state.currentIndex];
+      instructions.innerHTML = `Pasa el dispositivo a <span id="current-player">${playerName}</span> y presiona \"Mostrar\" cuando esté listo.`;
       toggleWordButton.textContent = 'Mostrar';
+    }
+  }
+}
+
+function prepareVoteStep() {
+  if (state.votingIndex >= state.players.length) {
+    finalizeVoting();
+    return;
+  }
+
+  const voterName = state.players[state.votingIndex];
+  voteInstructions.innerHTML = `Pasa el dispositivo a <strong>${voterName}</strong> para votar en secreto.`;
+  voteLabel.textContent = `${voterName}, ¿a quién acusas?`;
+
+  voteChoice.innerHTML = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Elige a un jugador';
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  voteChoice.appendChild(placeholder);
+
+  state.players.forEach((name, index) => {
+    if (index !== state.votingIndex) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name;
+      voteChoice.appendChild(option);
+    }
+  });
+}
+
+function startVoting() {
+  startVoteButton.disabled = true;
+  votePanel.classList.remove('hidden');
+  voteResult.classList.add('hidden');
+  voteIntro.textContent = 'Cada persona votará en secreto, pasando el dispositivo cuando termine.';
+  state.votes = [];
+  state.votingIndex = 0;
+  prepareVoteStep();
+}
+
+function submitVote(event) {
+  event.preventDefault();
+  if (!voteChoice.value) {
+    if (voteChoice.reportValidity) {
+      voteChoice.reportValidity();
+    }
+    return;
+  }
+
+  state.votes.push(voteChoice.value);
+  state.votingIndex += 1;
+  voteForm.reset();
+  prepareVoteStep();
+}
+
+function finalizeVoting() {
+  votePanel.classList.add('hidden');
+  voteResult.classList.remove('hidden');
+
+  const tally = new Map();
+  state.votes.forEach((vote) => {
+    tally.set(vote, (tally.get(vote) || 0) + 1);
+  });
+
+  const ordered = Array.from(tally.entries()).sort((a, b) => {
+    if (b[1] === a[1]) {
+      return a[0].localeCompare(b[0], 'es');
+    }
+    return b[1] - a[1];
+  });
+
+  const highest = ordered[0];
+  const maxVotes = highest ? highest[1] : 0;
+  const leaders = ordered.filter(([, votes]) => votes === maxVotes).map(([name]) => name);
+
+  if (!highest) {
+    voteSummary.textContent = 'No se registraron votos.';
+    voteOutcome.textContent = '';
+    return;
+  }
+
+  const breakdown = ordered.map(([name, count]) => `${name}: ${count}`).join(' · ');
+
+  if (leaders.length === 1) {
+    voteSummary.textContent = `La mayoría acusó a ${leaders[0]} con ${maxVotes} voto${maxVotes === 1 ? '' : 's'}. (${breakdown})`;
+  } else {
+    voteSummary.textContent = `Hubo un empate entre ${leaders.join(', ')} con ${maxVotes} voto${maxVotes === 1 ? '' : 's'}. (${breakdown})`;
+  }
+
+  if (state.mode === 'standard' && state.impostorIndex !== null) {
+    const impostorName = state.players[state.impostorIndex];
+    if (leaders.includes(impostorName)) {
+      if (leaders.length === 1) {
+        voteOutcome.textContent = `¡Acertaron! ${impostorName} era el impostor.`;
+      } else {
+        voteOutcome.textContent = `Empate, pero uno de los acusados es ${impostorName}, el impostor. Decidan cómo desempatar.`;
+      }
+    } else {
+      voteOutcome.textContent = `Fallaron. ${impostorName} era el impostor y sigue oculto.`;
+    }
+  } else {
+    const accusedIndexes = leaders.map((name) => state.players.indexOf(name)).filter((index) => index !== -1);
+    const caughtMinority = accusedIndexes.some((index) => state.minorityIndexes.has(index));
+    if (caughtMinority) {
+      if (leaders.length === 1) {
+        voteOutcome.textContent = `¡Lo lograron! ${leaders[0]} tenía la pista diferente (${state.minorityWord}).`;
+      } else {
+        voteOutcome.textContent = 'Empate con integrantes del grupo alterno. ¡Casi descubren a todos!';
+      }
+    } else {
+      if (state.minorityWord) {
+        voteOutcome.textContent = 'No dieron con quienes tenían la pista distinta. El engaño continúa.';
+      } else {
+        voteOutcome.textContent = '';
+      }
     }
   }
 }
@@ -942,10 +1168,32 @@ function resetRound() {
   state.assignments = [];
   state.currentIndex = 0;
   state.revealed = false;
+  state.players = [];
+  state.impostorIndex = null;
+  state.minorityIndexes = new Set();
+  state.votes = [];
+  state.votingIndex = 0;
+  toggleWordButton.disabled = false;
   wordDisplay.textContent = '';
+  voteIntro.textContent = 'Cuando terminen de debatir, inicien la votación secreta.';
+  startVoteButton.disabled = true;
+  votePanel.classList.add('hidden');
+  voteResult.classList.add('hidden');
+  voteInstructions.textContent = '';
+  voteSummary.textContent = '';
+  voteOutcome.textContent = '';
 }
 
 populateCategories();
+const initialCount = parseInt(playersInput.value, 10);
+const safeCount = Number.isNaN(initialCount) ? 3 : initialCount;
+syncPlayerInputs(Math.max(3, Math.min(20, safeCount)));
 setupForm.addEventListener('submit', startRound);
 toggleWordButton.addEventListener('click', handleToggle);
 resetButton.addEventListener('click', resetRound);
+playersInput.addEventListener('input', () => {
+  const count = Math.max(3, Math.min(20, parseInt(playersInput.value, 10) || 0));
+  syncPlayerInputs(count);
+});
+startVoteButton.addEventListener('click', startVoting);
+voteForm.addEventListener('submit', submitVote);

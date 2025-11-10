@@ -23,6 +23,11 @@
           <label for="players">Cantidad de jugadores</label>
           <input type="number" id="players" min="3" max="20" value="5" required />
 
+          <div class="names-field">
+            <span class="field-label">Nombres de los jugadores</span>
+            <div id="player-names" class="player-names"></div>
+          </div>
+
           <label for="category">Categoría</label>
           <select id="category" required></select>
 
@@ -57,7 +62,26 @@
 
         <div class="round-info">
           <p><strong>Categoría:</strong> <span id="round-category"></span></p>
-          <p><strong>Resumen:</strong> <span id="round-summary"></span></p>
+        </div>
+
+        <div id="voting" class="voting">
+          <h3>Votación</h3>
+          <p id="vote-intro">Cuando terminen de debatir, inicien la votación secreta.</p>
+          <button id="start-vote" type="button" class="primary">Comenzar votación</button>
+
+          <div id="vote-panel" class="hidden">
+            <p id="vote-instructions"></p>
+            <form id="vote-form">
+              <label for="vote-choice" id="vote-label">Selecciona a quién acusas</label>
+              <select id="vote-choice" required></select>
+              <button type="submit" class="primary">Registrar voto</button>
+            </form>
+          </div>
+
+          <div id="vote-result" class="hidden">
+            <p id="vote-summary" class="vote-summary"></p>
+            <p id="vote-outcome" class="vote-outcome"></p>
+          </div>
         </div>
       </section>
 

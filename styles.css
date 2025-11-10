@@ -68,6 +68,7 @@ label {
 }
 
 input[type='number'],
+input[type='text'],
 select {
   width: 100%;
   padding: 0.75rem 0.9rem;
@@ -77,6 +78,26 @@ select {
   color: var(--text);
   font-size: 1rem;
   margin-bottom: 1.25rem;
+}
+
+.player-names {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 0;
+}
+
+.names-field {
+  margin-bottom: 1.5rem;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.6rem;
+  font-weight: 600;
+}
+
+.player-name input {
+  margin-bottom: 0;
 }
 
 .radio-group {
@@ -141,6 +162,12 @@ button.secondary:hover {
   border-color: var(--accent);
 }
 
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .hidden {
   display: none;
 }
@@ -183,6 +210,37 @@ button.secondary:hover {
 
 .round-info strong {
   color: var(--text);
+}
+
+.voting {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+  display: grid;
+  gap: 1.25rem;
+}
+
+.voting h3 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.voting form {
+  display: grid;
+  gap: 1rem;
+}
+
+.voting button.primary {
+  justify-self: start;
+}
+
+.vote-summary {
+  font-weight: 600;
+}
+
+.vote-outcome {
+  color: #facc15;
+  font-weight: 600;
 }
 
 .about ol {
