@@ -159,6 +159,38 @@ const categories = {
     "Motociclismo",
     "Automovilismo"
   ],
+  "Deportistas históricos y actuales": [
+    "Michael Jordan",
+    "Lionel Messi",
+    "Cristiano Ronaldo",
+    "Serena Williams",
+    "Usain Bolt",
+    "Michael Phelps",
+    "Muhammad Ali",
+    "Roger Federer",
+    "Rafael Nadal",
+    "Novak Djokovic",
+    "Diego Maradona",
+    "Pelé",
+    "Simone Biles",
+    "Tiger Woods",
+    "LeBron James",
+    "Kobe Bryant",
+    "Nadia Comaneci",
+    "Magic Johnson",
+    "Larry Bird",
+    "Carl Lewis",
+    "Marta",
+    "Zinedine Zidane",
+    "Ronaldinho",
+    "Tom Brady",
+    "Lewis Hamilton",
+    "Ayrton Senna",
+    "Valentino Rossi",
+    "Mike Tyson",
+    "Stephen Curry",
+    "Martina Navratilova"
+  ],
   "Películas": [
     "El Padrino",
     "Titanic",
@@ -703,6 +735,166 @@ const categories = {
     "Jada Stevens",
     "Hitomi Tanaka"
   ],
+  "Carreras": [
+    "Medicina",
+    "Derecho",
+    "Ingeniería Civil",
+    "Ingeniería Industrial",
+    "Ingeniería Informática",
+    "Arquitectura",
+    "Contador Público",
+    "Administración de Empresas",
+    "Economía",
+    "Psicología",
+    "Periodismo",
+    "Marketing",
+    "Publicidad",
+    "Diseño Gráfico",
+    "Diseño Industrial",
+    "Relaciones Internacionales",
+    "Relaciones Públicas",
+    "Biotecnología",
+    "Ingeniería Química",
+    "Ingeniería Mecánica",
+    "Ingeniería Eléctrica",
+    "Enfermería",
+    "Farmacia",
+    "Odontología",
+    "Veterinaria",
+    "Trabajo Social",
+    "Recursos Humanos",
+    "Turismo",
+    "Gastronomía",
+    "Educación Física"
+  ],
+  "Futbol Argentino": [
+    "Boca Juniors",
+    "River Plate",
+    "Independiente",
+    "Racing Club",
+    "San Lorenzo",
+    "Huracán",
+    "Vélez Sarsfield",
+    "Argentinos Juniors",
+    "Estudiantes de La Plata",
+    "Gimnasia y Esgrima La Plata",
+    "Lanús",
+    "Banfield",
+    "Newell's Old Boys",
+    "Rosario Central",
+    "Colón",
+    "Unión de Santa Fe",
+    "Talleres de Córdoba",
+    "Belgrano",
+    "Godoy Cruz",
+    "Atlético Tucumán",
+    "Central Córdoba",
+    "Sarmiento de Junín",
+    "Patronato",
+    "Aldosivi",
+    "Defensa y Justicia",
+    "Arsenal de Sarandí",
+    "Platense",
+    "Barracas Central",
+    "Tigre",
+    "Instituto"
+  ],
+  "Juegos": [
+    "Ajedrez",
+    "Monopoly",
+    "Scrabble",
+    "Catan",
+    "Risk",
+    "Uno",
+    "Jenga",
+    "Clue",
+    "Pictionary",
+    "Twister",
+    "Dominó",
+    "Poker",
+    "Blackjack",
+    "Bingo",
+    "Fortnite",
+    "Minecraft",
+    "League of Legends",
+    "Valorant",
+    "Among Us",
+    "Fall Guys",
+    "Overwatch",
+    "Counter-Strike",
+    "FIFA",
+    "Call of Duty",
+    "The Legend of Zelda",
+    "Super Mario Odyssey",
+    "Animal Crossing",
+    "Genshin Impact",
+    "Rocket League",
+    "Apex Legends"
+  ],
+  "Jugadores Argentinos": [
+    "Lionel Messi",
+    "Diego Maradona",
+    "Juan Román Riquelme",
+    "Gabriel Batistuta",
+    "Sergio Agüero",
+    "Ángel Di María",
+    "Javier Mascherano",
+    "Gonzalo Higuaín",
+    "Carlos Tevez",
+    "Hernán Crespo",
+    "Mario Kempes",
+    "Ricardo Bochini",
+    "Ariel Ortega",
+    "Fernando Redondo",
+    "Javier Zanetti",
+    "Pablo Aimar",
+    "Esteban Cambiasso",
+    "Juan Sebastián Verón",
+    "Nicolás Otamendi",
+    "Emiliano Martínez",
+    "Lautaro Martínez",
+    "Paulo Dybala",
+    "Rodrigo De Paul",
+    "Leandro Paredes",
+    "Lisandro Martínez",
+    "Ángel Correa",
+    "Giovani Lo Celso",
+    "Claudio Caniggia",
+    "Oscar Ruggeri",
+    "Walter Samuel"
+  ],
+  "Streamers Famosos": [
+    "Ibai Llanos",
+    "AuronPlay",
+    "El Rubius",
+    "TheGrefg",
+    "Ninja",
+    "Pokimane",
+    "xQc",
+    "Shroud",
+    "Myth",
+    "Tfue",
+    "Summit1g",
+    "Sodapoppin",
+    "Nickmercs",
+    "Loserfruit",
+    "Valkyrae",
+    "TimTheTatman",
+    "Sykkuno",
+    "ElMariana",
+    "Juansguarnizo",
+    "Alexby11",
+    "Vegetta777",
+    "Luzu",
+    "CouRageJD",
+    "Dream",
+    "Sapnap",
+    "Karl Jacobs",
+    "Quackity",
+    "AriGameplays",
+    "WindyGirk",
+    "Coscu"
+  ],
   "Tecnología y gadgets": [
     "Smartphone",
     "Tableta",
@@ -892,6 +1084,7 @@ function clearWordVisual() {
   wordVisual.classList.add('hidden');
   wordImage.removeAttribute('src');
   wordImage.alt = '';
+  wordImage.onerror = null;
   wordCaption.textContent = '';
 }
 
@@ -903,6 +1096,20 @@ function normalizeForQuery(label) {
     .trim()
     .replace(/\s+/g, '+')
     .toLowerCase();
+}
+
+function buildUnsplashUrl(...terms) {
+  const query = normalizeForQuery(
+    terms
+      .filter(Boolean)
+      .join(' ')
+  );
+
+  if (!query) {
+    return null;
+  }
+
+  return `https://source.unsplash.com/featured/400x300?${query}`;
 }
 
 const flagCodes = {
@@ -948,22 +1155,23 @@ function getFlagUrl(country) {
 
 function getImageUrl(category, label) {
   if (category === 'Países') {
-    return getFlagUrl(label);
+    const flagUrl = getFlagUrl(label);
+    return flagUrl || buildUnsplashUrl(label, 'bandera');
   }
 
   if (category === 'Animales') {
-    return `https://source.unsplash.com/featured/400x300?${normalizeForQuery(`${label} animal`)}`;
+    return buildUnsplashUrl(label, 'animal');
   }
 
   if (category === 'Animales marinos') {
-    return `https://source.unsplash.com/featured/400x300?${normalizeForQuery(`${label} marino`)}`;
+    return buildUnsplashUrl(label, 'animal marino');
   }
 
   if (category === 'Tecnología y gadgets') {
-    return `https://source.unsplash.com/featured/400x300?${normalizeForQuery(label)}`;
+    return buildUnsplashUrl(label, 'tecnología');
   }
 
-  return null;
+  return buildUnsplashUrl(label, category);
 }
 
 function showWordVisual(category, label) {
@@ -977,14 +1185,30 @@ function showWordVisual(category, label) {
     return;
   }
 
+  wordImage.onerror = () => {
+    const fallbackUrl = buildUnsplashUrl(category);
+    wordImage.onerror = null;
+
+    if (fallbackUrl && wordImage.src !== fallbackUrl) {
+      wordImage.src = fallbackUrl;
+      wordImage.alt = category;
+      wordCaption.textContent = `Referencia visual asociada a ${category.toLowerCase()}`;
+      wordVisual.classList.remove('hidden');
+    } else {
+      clearWordVisual();
+    }
+  };
+
   wordImage.src = imageUrl;
   wordImage.alt = label;
   if (category === 'Países') {
     wordCaption.textContent = `Bandera de ${label}`;
   } else if (category === 'Tecnología y gadgets') {
     wordCaption.textContent = `Referencia ilustrativa: ${label}`;
-  } else {
+  } else if (category === 'Animales' || category === 'Animales marinos') {
     wordCaption.textContent = `Imagen ilustrativa de ${label}`;
+  } else {
+    wordCaption.textContent = `Referencia visual de ${label}`;
   }
   wordVisual.classList.remove('hidden');
 }
