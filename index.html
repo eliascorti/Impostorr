@@ -31,16 +31,6 @@
           <label for="category">Categoría</label>
           <select id="category" required></select>
 
-          <label for="language">Modo de palabra</label>
-          <div class="radio-group">
-            <label>
-              <input type="radio" name="mode" value="standard" checked /> Palabra única para todos
-            </label>
-            <label>
-              <input type="radio" name="mode" value="double" /> Dos palabras similares (modo difícil)
-            </label>
-          </div>
-
           <button type="submit" class="primary">Comenzar ronda</button>
         </form>
       </section>
@@ -58,6 +48,10 @@
         <div class="reveal">
           <button id="toggle-word" class="primary">Mostrar</button>
           <div id="word" class="word" aria-live="assertive"></div>
+          <div id="word-visual" class="word-visual hidden">
+            <img id="word-image" alt="" />
+            <p id="word-caption"></p>
+          </div>
         </div>
 
         <div class="round-info">
@@ -92,14 +86,14 @@
           <li>Una vez iniciada la ronda, pasa el dispositivo. Cada jugador presiona "Mostrar" para ver su palabra.</li>
           <li>Todos menos uno verán la misma palabra. A la persona que le toque "Impostor" deberá fingir saberla.</li>
           <li>Conversen dando pistas sin revelar la palabra exacta. Al final voten quién creen que es el impostor.</li>
-          <li>En modo difícil aparecen dos palabras muy parecidas: la mayoría verá una y una minoría la otra.</li>
-        </ol>
-      </section>
-    </main>
+          <li>Sigan votando hasta atrapar al impostor. Si quedan dos personas y el impostor sigue libre, la ronda termina.</li>
+      </ol>
+    </section>
+  </main>
 
-    <footer>
-      <p>Hecho con ❤ para reuniones inolvidables.</p>
-    </footer>
+  <footer>
+      <p>Hecho con ❤ para reuniones inolvidables. Todos los derechos me pertenecen: elxortiCreations.</p>
+  </footer>
   </div>
 
   <script src="script.js"></script>

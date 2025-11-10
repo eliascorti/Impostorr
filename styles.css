@@ -100,33 +100,6 @@ select {
   margin-bottom: 0;
 }
 
-.radio-group {
-  display: grid;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
-}
-
-.radio-group label {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.65rem 0.9rem;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  background: rgba(15, 23, 42, 0.5);
-  cursor: pointer;
-  transition: border-color 0.2s ease;
-}
-
-.radio-group input {
-  width: 18px;
-  height: 18px;
-}
-
-.radio-group label:hover {
-  border-color: var(--accent);
-}
-
 button {
   font-family: inherit;
   font-weight: 600;
@@ -200,6 +173,26 @@ button:disabled {
   color: #f87171;
   border-color: rgba(248, 113, 113, 0.6);
   box-shadow: inset 0 0 0 1px rgba(248, 113, 113, 0.4);
+}
+
+.word-visual {
+  display: grid;
+  gap: 0.75rem;
+  justify-items: center;
+}
+
+.word-visual img {
+  width: min(320px, 100%);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px -25px rgba(15, 23, 42, 0.9);
+  object-fit: cover;
+}
+
+.word-visual p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+  text-align: center;
 }
 
 .round-info {

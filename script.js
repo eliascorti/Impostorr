@@ -671,6 +671,38 @@ const categories = {
     "Norman Bates",
     "Lord Farquaad"
   ],
+  "Actrices +18": [
+    "Mia Khalifa",
+    "Riley Reid",
+    "Lana Rhoades",
+    "Abella Danger",
+    "Angela White",
+    "Mia Malkova",
+    "Eva Lovia",
+    "Adriana Chechik",
+    "Brandi Love",
+    "Nicole Aniston",
+    "Tori Black",
+    "Madison Ivy",
+    "Lisa Ann",
+    "Jenna Haze",
+    "Gianna Michaels",
+    "Lexi Belle",
+    "Sasha Grey",
+    "Asa Akira",
+    "Dillion Harper",
+    "August Ames",
+    "Bonnie Rotten",
+    "Kenzie Reeves",
+    "Eva Elfie",
+    "Gina Valentina",
+    "Aidra Fox",
+    "Romi Rain",
+    "Kendra Lust",
+    "Nicolette Shea",
+    "Jada Stevens",
+    "Hitomi Tanaka"
+  ],
   "Tecnología y gadgets": [
     "Smartphone",
     "Tableta",
@@ -805,7 +837,6 @@ const setupForm = document.getElementById('setup-form');
 const playersInput = document.getElementById('players');
 const playerNamesContainer = document.getElementById('player-names');
 const categorySelect = document.getElementById('category');
-const modeRadios = document.querySelectorAll("input[name='mode']");
 const setupSection = document.getElementById('setup');
 const roundSection = document.getElementById('round');
 const roundTitle = document.getElementById('round-title');
@@ -814,6 +845,9 @@ const instructions = document.getElementById('instructions');
 let currentPlayerSpan = document.getElementById('current-player');
 const toggleWordButton = document.getElementById('toggle-word');
 const wordDisplay = document.getElementById('word');
+const wordVisual = document.getElementById('word-visual');
+const wordImage = document.getElementById('word-image');
+const wordCaption = document.getElementById('word-caption');
 const roundCategory = document.getElementById('round-category');
 
 const votingSection = document.getElementById('voting');
@@ -834,15 +868,126 @@ const state = {
   assignments: [],
   currentIndex: 0,
   revealed: false,
-  mode: 'standard',
   players: [],
+  activePlayers: new Set(),
+  eliminated: new Set(),
   impostorIndex: null,
-  minorityIndexes: new Set(),
   votes: [],
   votingIndex: 0,
-  majorityWord: null,
-  minorityWord: null
+  votingOrder: [],
+  secretWord: null,
+  category: null,
+  roundResolved: false
 };
+
+if (wordImage) {
+  wordImage.loading = 'lazy';
+  wordImage.decoding = 'async';
+}
+
+function clearWordVisual() {
+  if (!wordVisual || !wordImage || !wordCaption) {
+    return;
+  }
+  wordVisual.classList.add('hidden');
+  wordImage.removeAttribute('src');
+  wordImage.alt = '';
+  wordCaption.textContent = '';
+}
+
+function normalizeForQuery(label) {
+  return label
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, '+')
+    .toLowerCase();
+}
+
+const flagCodes = {
+  Argentina: 'ar',
+  Brasil: 'br',
+  Chile: 'cl',
+  Perú: 'pe',
+  Colombia: 'co',
+  México: 'mx',
+  'Estados Unidos': 'us',
+  Canadá: 'ca',
+  España: 'es',
+  Francia: 'fr',
+  Italia: 'it',
+  Alemania: 'de',
+  Japón: 'jp',
+  China: 'cn',
+  India: 'in',
+  Australia: 'au',
+  'Nueva Zelanda': 'nz',
+  'Sudáfrica': 'za',
+  Egipto: 'eg',
+  Marruecos: 'ma',
+  Grecia: 'gr',
+  Turquía: 'tr',
+  Rusia: 'ru',
+  Suecia: 'se',
+  Noruega: 'no',
+  Finlandia: 'fi',
+  Islandia: 'is',
+  Portugal: 'pt',
+  Irlanda: 'ie',
+  'Corea del Sur': 'kr'
+};
+
+function getFlagUrl(country) {
+  const code = flagCodes[country];
+  if (!code) {
+    return null;
+  }
+  return `https://flagcdn.com/w320/${code.toLowerCase()}.png`;
+}
+
+function getImageUrl(category, label) {
+  if (category === 'Países') {
+    return getFlagUrl(label);
+  }
+
+  if (category === 'Animales') {
+    return `https://source.unsplash.com/featured/400x300?${normalizeForQuery(`${label} animal`)}`;
+  }
+
+  if (category === 'Animales marinos') {
+    return `https://source.unsplash.com/featured/400x300?${normalizeForQuery(`${label} marino`)}`;
+  }
+
+  if (category === 'Tecnología y gadgets') {
+    return `https://source.unsplash.com/featured/400x300?${normalizeForQuery(label)}`;
+  }
+
+  return null;
+}
+
+function showWordVisual(category, label) {
+  const imageUrl = getImageUrl(category, label);
+  if (!imageUrl) {
+    clearWordVisual();
+    return;
+  }
+
+  if (!wordVisual || !wordImage || !wordCaption) {
+    return;
+  }
+
+  wordImage.src = imageUrl;
+  wordImage.alt = label;
+  if (category === 'Países') {
+    wordCaption.textContent = `Bandera de ${label}`;
+  } else if (category === 'Tecnología y gadgets') {
+    wordCaption.textContent = `Referencia ilustrativa: ${label}`;
+  } else {
+    wordCaption.textContent = `Imagen ilustrativa de ${label}`;
+  }
+  wordVisual.classList.remove('hidden');
+}
 
 function populateCategories() {
   const names = Object.keys(categories).sort((a, b) => a.localeCompare(b, 'es'));
@@ -898,24 +1043,10 @@ function getPlayerNames() {
   return Array.from(playerNamesContainer.querySelectorAll('input')).map((input) => input.value.trim());
 }
 
-function getSelectedMode() {
-  const checked = Array.from(modeRadios).find((radio) => radio.checked);
-  return checked ? checked.value : 'standard';
-}
-
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-  return array;
-}
-
 function startRound(event) {
   event.preventDefault();
   const players = Math.max(3, parseInt(playersInput.value, 10));
   const category = categorySelect.value;
-  const mode = getSelectedMode();
   syncPlayerInputs(players);
   const names = getPlayerNames();
 
@@ -940,57 +1071,39 @@ function startRound(event) {
     return;
   }
 
-  state.mode = mode;
   state.currentIndex = 0;
   state.revealed = false;
   state.players = names;
   state.assignments = [];
   state.impostorIndex = null;
-  state.minorityIndexes = new Set();
   state.votes = [];
   state.votingIndex = 0;
-  state.majorityWord = null;
-  state.minorityWord = null;
+  state.votingOrder = [];
+  state.secretWord = null;
+  state.category = category;
+  state.roundResolved = false;
+  state.activePlayers = new Set();
+  state.eliminated = new Set();
 
   const pool = categories[category];
+  const secretWord = pool[Math.floor(Math.random() * pool.length)];
+  const impostorIndex = Math.floor(Math.random() * players);
 
-  if (mode === 'standard') {
-    const secretWord = pool[Math.floor(Math.random() * pool.length)];
-    const impostorIndex = Math.floor(Math.random() * players);
+  state.assignments = Array.from({ length: players }, (_, index) =>
+    index === impostorIndex ? 'IMPOSTOR' : secretWord
+  );
 
-    state.assignments = Array.from({ length: players }, (_, index) =>
-      index === impostorIndex ? 'IMPOSTOR' : secretWord
-    );
-
-    state.impostorIndex = impostorIndex;
-    state.majorityWord = secretWord;
-    roundTitle.textContent = 'Revelación de roles';
-  } else {
-    const [wordA, wordB] = shuffle([...pool]).slice(0, 2);
-    const minorityCount = Math.max(1, Math.floor(players / 3));
-    const majorityCount = players - minorityCount;
-    const assignments = [
-      ...Array.from({ length: majorityCount }, () => wordA),
-      ...Array.from({ length: minorityCount }, () => wordB)
-    ];
-    state.assignments = shuffle(assignments);
-
-    state.majorityWord = wordA;
-    state.minorityWord = wordB;
-    state.minorityIndexes = new Set();
-    state.assignments.forEach((word, index) => {
-      if (word === wordB) {
-        state.minorityIndexes.add(index);
-      }
-    });
-    roundTitle.textContent = 'Modo difícil: dos pistas';
-  }
+  state.impostorIndex = impostorIndex;
+  state.secretWord = secretWord;
+  roundTitle.textContent = 'Revelación de roles';
+  state.activePlayers = new Set(Array.from({ length: players }, (_, index) => index));
 
   setupSection.classList.add('hidden');
   roundSection.classList.remove('hidden');
   toggleWordButton.disabled = false;
   toggleWordButton.textContent = 'Mostrar';
   wordDisplay.textContent = '';
+  clearWordVisual();
 
   const firstPlayerName = state.players[0];
   currentPlayerSpan.textContent = firstPlayerName;
@@ -1002,6 +1115,7 @@ function startRound(event) {
 
   voteIntro.textContent = 'Cuando terminen de debatir, inicien la votación secreta.';
   startVoteButton.disabled = true;
+  startVoteButton.textContent = 'Comenzar votación';
   votePanel.classList.add('hidden');
   voteResult.classList.add('hidden');
   voteInstructions.textContent = '';
@@ -1020,6 +1134,11 @@ function handleToggle() {
     const playerName = state.players[state.currentIndex];
     wordDisplay.textContent = role;
     wordDisplay.classList.toggle('impostor', role === 'IMPOSTOR');
+    if (role === 'IMPOSTOR') {
+      clearWordVisual();
+    } else {
+      showWordVisual(state.category, role);
+    }
     toggleWordButton.textContent = 'Ocultar';
     state.revealed = true;
 
@@ -1027,6 +1146,7 @@ function handleToggle() {
   } else {
     wordDisplay.textContent = '';
     wordDisplay.classList.remove('impostor');
+    clearWordVisual();
     state.revealed = false;
     state.currentIndex += 1;
 
@@ -1036,6 +1156,7 @@ function handleToggle() {
       instructions.textContent = 'Todos tienen su rol. ¡Comiencen a debatir y descubran al impostor!';
       roundTitle.textContent = '¡A jugar!';
       startVoteButton.disabled = false;
+      startVoteButton.textContent = 'Comenzar votación';
       voteIntro.textContent = 'Cuando estén listos, inicien la votación secreta para descubrir al impostor.';
     } else {
       const playerName = state.players[state.currentIndex];
@@ -1046,12 +1167,13 @@ function handleToggle() {
 }
 
 function prepareVoteStep() {
-  if (state.votingIndex >= state.players.length) {
+  if (state.votingIndex >= state.votingOrder.length) {
     finalizeVoting();
     return;
   }
 
-  const voterName = state.players[state.votingIndex];
+  const voterIndex = state.votingOrder[state.votingIndex];
+  const voterName = state.players[voterIndex];
   voteInstructions.innerHTML = `Pasa el dispositivo a <strong>${voterName}</strong> para votar en secreto.`;
   voteLabel.textContent = `${voterName}, ¿a quién acusas?`;
 
@@ -1063,22 +1185,36 @@ function prepareVoteStep() {
   placeholder.selected = true;
   voteChoice.appendChild(placeholder);
 
-  state.players.forEach((name, index) => {
-    if (index !== state.votingIndex) {
+  Array.from(state.activePlayers)
+    .filter((index) => index !== voterIndex)
+    .forEach((index) => {
+      const name = state.players[index];
       const option = document.createElement('option');
       option.value = name;
       option.textContent = name;
       voteChoice.appendChild(option);
-    }
-  });
+    });
 }
 
 function startVoting() {
+  if (state.roundResolved) {
+    return;
+  }
+
+  const activePlayers = Array.from(state.activePlayers);
+  if (activePlayers.length <= 2) {
+    voteIntro.textContent = 'La votación ha terminado: solo quedan dos personas en juego.';
+    startVoteButton.disabled = true;
+    return;
+  }
+
   startVoteButton.disabled = true;
+  startVoteButton.textContent = 'Votación en curso';
   votePanel.classList.remove('hidden');
   voteResult.classList.add('hidden');
   voteIntro.textContent = 'Cada persona votará en secreto, pasando el dispositivo cuando termine.';
   state.votes = [];
+  state.votingOrder = activePlayers;
   state.votingIndex = 0;
   prepareVoteStep();
 }
@@ -1095,12 +1231,14 @@ function submitVote(event) {
   state.votes.push(voteChoice.value);
   state.votingIndex += 1;
   voteForm.reset();
+  voteChoice.value = '';
   prepareVoteStep();
 }
 
 function finalizeVoting() {
   votePanel.classList.add('hidden');
   voteResult.classList.remove('hidden');
+  voteIntro.textContent = 'Resultados de la votación secreta.';
 
   const tally = new Map();
   state.votes.forEach((vote) => {
@@ -1121,6 +1259,11 @@ function finalizeVoting() {
   if (!highest) {
     voteSummary.textContent = 'No se registraron votos.';
     voteOutcome.textContent = '';
+    if (!state.roundResolved) {
+      startVoteButton.disabled = false;
+      startVoteButton.textContent = 'Reintentar votación';
+    }
+    voteIntro.textContent = 'No hubo votos registrados. Intenten otra vez cuando estén listos.';
     return;
   }
 
@@ -1132,33 +1275,54 @@ function finalizeVoting() {
     voteSummary.textContent = `Hubo un empate entre ${leaders.join(', ')} con ${maxVotes} voto${maxVotes === 1 ? '' : 's'}. (${breakdown})`;
   }
 
-  if (state.mode === 'standard' && state.impostorIndex !== null) {
-    const impostorName = state.players[state.impostorIndex];
-    if (leaders.includes(impostorName)) {
-      if (leaders.length === 1) {
-        voteOutcome.textContent = `¡Acertaron! ${impostorName} era el impostor.`;
-      } else {
-        voteOutcome.textContent = `Empate, pero uno de los acusados es ${impostorName}, el impostor. Decidan cómo desempatar.`;
-      }
-    } else {
-      voteOutcome.textContent = `Fallaron. ${impostorName} era el impostor y sigue oculto.`;
+  if (leaders.length !== 1) {
+    voteOutcome.textContent = 'Empate sin eliminación. Hablen un poco más y vuelvan a intentarlo.';
+    if (!state.roundResolved) {
+      startVoteButton.disabled = false;
+      startVoteButton.textContent = 'Reintentar votación';
     }
+    voteIntro.textContent = 'Empate sin eliminación. Intenten otra votación.';
+    return;
+  }
+
+  const accusedName = leaders[0];
+  const accusedIndex = state.players.indexOf(accusedName);
+  if (!state.activePlayers.has(accusedIndex)) {
+    voteOutcome.textContent = `${accusedName} ya no está en juego. Realicen otra votación.`;
+    if (!state.roundResolved) {
+      startVoteButton.disabled = false;
+      startVoteButton.textContent = 'Reintentar votación';
+    }
+    voteIntro.textContent = 'Elijan a alguien que siga en juego para continuar.';
+    return;
+  }
+
+  const impostorName = state.players[state.impostorIndex];
+
+  if (accusedIndex === state.impostorIndex) {
+    voteOutcome.textContent = `¡Acertaron! ${impostorName} era el impostor. La palabra secreta era "${state.secretWord}".`;
+    state.roundResolved = true;
+    startVoteButton.disabled = true;
+    startVoteButton.textContent = 'Votación finalizada';
+    voteIntro.textContent = 'Fin de la ronda: el impostor fue encontrado.';
+    return;
+  }
+
+  state.activePlayers.delete(accusedIndex);
+  state.eliminated.add(accusedIndex);
+  const remaining = state.activePlayers.size;
+
+  if (remaining <= 2) {
+    voteOutcome.textContent = `Quedan ${remaining} jugadores y el impostor sigue oculto. Era ${impostorName}. La palabra secreta era "${state.secretWord}".`;
+    state.roundResolved = true;
+    startVoteButton.disabled = true;
+    startVoteButton.textContent = 'Ronda finalizada';
+    voteIntro.textContent = 'El impostor se salió con la suya esta ronda.';
   } else {
-    const accusedIndexes = leaders.map((name) => state.players.indexOf(name)).filter((index) => index !== -1);
-    const caughtMinority = accusedIndexes.some((index) => state.minorityIndexes.has(index));
-    if (caughtMinority) {
-      if (leaders.length === 1) {
-        voteOutcome.textContent = `¡Lo lograron! ${leaders[0]} tenía la pista diferente (${state.minorityWord}).`;
-      } else {
-        voteOutcome.textContent = 'Empate con integrantes del grupo alterno. ¡Casi descubren a todos!';
-      }
-    } else {
-      if (state.minorityWord) {
-        voteOutcome.textContent = 'No dieron con quienes tenían la pista distinta. El engaño continúa.';
-      } else {
-        voteOutcome.textContent = '';
-      }
-    }
+    voteOutcome.textContent = `${accusedName} fue eliminado pero no era el impostor. Continúen votando.`;
+    startVoteButton.disabled = false;
+    startVoteButton.textContent = 'Nueva votación';
+    voteIntro.textContent = 'Inicia otra ronda de votación con las personas restantes.';
   }
 }
 
@@ -1169,17 +1333,26 @@ function resetRound() {
   state.currentIndex = 0;
   state.revealed = false;
   state.players = [];
+  state.activePlayers = new Set();
+  state.eliminated = new Set();
   state.impostorIndex = null;
-  state.minorityIndexes = new Set();
   state.votes = [];
   state.votingIndex = 0;
+  state.votingOrder = [];
+  state.secretWord = null;
+  state.category = null;
+  state.roundResolved = false;
   toggleWordButton.disabled = false;
+  toggleWordButton.textContent = 'Mostrar';
   wordDisplay.textContent = '';
+  clearWordVisual();
   voteIntro.textContent = 'Cuando terminen de debatir, inicien la votación secreta.';
   startVoteButton.disabled = true;
+  startVoteButton.textContent = 'Comenzar votación';
   votePanel.classList.add('hidden');
   voteResult.classList.add('hidden');
   voteInstructions.textContent = '';
+  voteChoice.innerHTML = '';
   voteSummary.textContent = '';
   voteOutcome.textContent = '';
 }
