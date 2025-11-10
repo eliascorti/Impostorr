@@ -6,10 +6,11 @@ Juego de fiesta web para jugar al impostor pasando el dispositivo entre los juga
 
 1. Abre `index.html` en tu navegador favorito.
 2. Define la cantidad de jugadores (mínimo 3) e ingresa el nombre de cada participante.
-3. Elige una categoría; hay más de 25 opciones, incluidas "Deportistas históricos y actuales", "Juegos", "Carreras", "Futbol Argentino", "Jugadores Argentinos" y "Streamers Famosos".
+3. Elige una categoría; hay más de 25 opciones, incluidas "Deportistas históricos y actuales", "Juegos", "Carreras", "Futbol Argentino", "Jugadores Argentinos" y "Streamers Famosos". Si no pueden decidirse, usa el botón **🎲 Aleatorio** para que el juego proponga una temática sorpresa.
 4. Presiona **Comenzar ronda** y pasa el dispositivo: cada jugador verá en secreto su pista o si es el impostor.
 5. Cuando todos hayan visto su rol, pulsa **Comenzar votación** para registrar los votos de manera anónima.
 6. El sistema repetirá las votaciones automáticamente: si atrapan al impostor mostrará el éxito y, si solo quedan dos personas, revelará la identidad del impostor.
+7. Al finalizar una ronda, puedes iniciar otra inmediatamente desde **Volver a jugar** (en línea) o con **Nueva ronda** (modo local), volviendo a elegir categoría o dejando que la ruleta aleatoria decida.
 
 Durante las revelaciones se muestran imágenes de referencia para todas las categorías (banderas, personas, equipos, animales, objetos, etc.).
 
@@ -23,7 +24,8 @@ Además del modo clásico en un solo dispositivo, la página ofrece un modo en l
 2. Antes de cargar `script.js`, define `window.IMPOSTORX_SOCKET_URL` apuntando a la URL pública de ese backend. Si no lo haces y estás en `localhost`, el frontend intentará conectarse automáticamente a `http://localhost:3000`.
 3. En la interfaz, selecciona **En línea**. Como anfitrión, toca **Crear sala** y genera un código único. Compártelo con tus amigos y espera a que se conecten (necesitas al menos tres personas activas para iniciar la ronda).
 4. Desde otros dispositivos, abre la página, elige **En línea → Unirse a sala**, escribe el código y tu nombre. Cada jugador verá su palabra en privado desde su celular y podrá votar desde ahí.
-5. El anfitrión controla el inicio de las rondas y puede abrir votaciones sucesivas hasta atrapar al impostor o quedar solo dos jugadores. Los resultados y eliminaciones se sincronizan automáticamente usando eventos de Socket.IO.
+5. El anfitrión controla el inicio de las rondas, también recibe su rol en un panel privado (puede jugar y votar como cualquier participante) y puede abrir votaciones sucesivas hasta atrapar al impostor o quedar solo dos jugadores. Los resultados y eliminaciones se sincronizan automáticamente usando eventos de Socket.IO.
+6. Tras cada partida, el anfitrión dispone del botón **Volver a jugar** para lanzar la siguiente ronda con la categoría que prefiera (incluido el modo aleatorio), mientras el resto de jugadores recibe el resumen final en sus dispositivos.
 
 ```html
 <script>

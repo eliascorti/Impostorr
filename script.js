@@ -1576,6 +1576,23 @@ const playerVoteForm = document.getElementById('player-vote-form');
 const playerVoteChoice = document.getElementById('player-vote-choice');
 const playerVoteLabel = document.getElementById('player-vote-label');
 const playerLeaveButton = document.getElementById('player-leave');
+const hostPlayerPanel = document.getElementById('host-player-panel');
+const hostRoleText = document.getElementById('host-role-text');
+const hostToggleWordButton = document.getElementById('host-toggle-word');
+const hostWordWrapper = document.getElementById('host-word-wrapper');
+const hostWordDisplay = document.getElementById('host-word');
+const hostWordVisual = document.getElementById('host-word-visual');
+const hostWordImage = document.getElementById('host-word-image');
+const hostWordCaption = document.getElementById('host-word-caption');
+const hostVotePanel = document.getElementById('host-vote-panel');
+const hostVoteInstructions = document.getElementById('host-vote-instructions');
+const hostVoteForm = document.getElementById('host-vote-form');
+const hostVoteChoice = document.getElementById('host-vote-choice');
+const hostVoteLabel = document.getElementById('host-vote-label');
+const hostRestartButton = document.getElementById('host-restart-round');
+const localRandomCategoryButton = document.getElementById('category-random-button');
+const onlineRandomCategoryButton = document.getElementById('online-category-random');
+const bodyElement = typeof document !== 'undefined' ? document.body : null;
 
 startVoteButton.disabled = true;
 
@@ -1604,6 +1621,8 @@ const onlineState = {
   peer: null,
   hostName: '',
   roomCode: '',
+  hostId: null,
+  hostIsPlaying: true,
   connections: new Map(),
   players: [],
   activePlayers: new Set(),
@@ -1622,12 +1641,27 @@ const onlineState = {
   playerRole: null,
   playerWord: null,
   playerImage: null,
-  playerReveal: false
+  playerReveal: false,
+  hostRole: null,
+  hostWord: null,
+  hostImage: null,
+  hostReveal: false,
+  roundsPlayed: 0
 };
 
 if (wordImage) {
   wordImage.loading = 'lazy';
   wordImage.decoding = 'async';
+}
+
+if (playerWordImage) {
+  playerWordImage.loading = 'lazy';
+  playerWordImage.decoding = 'async';
+}
+
+if (hostWordImage) {
+  hostWordImage.loading = 'lazy';
+  hostWordImage.decoding = 'async';
 }
 
 function clearWordVisual() {
@@ -1776,18 +1810,61 @@ function showWordVisual(category, label) {
   wordVisual.classList.remove('hidden');
 }
 
+function getRandomCategoryName(exclude = []) {
+  const keys = Object.keys(categories);
+  if (!keys.length) {
+    return '';
+  }
+  const pool = keys.filter((name) => !exclude.includes(name));
+  const source = pool.length > 0 ? pool : keys;
+  return source[Math.floor(Math.random() * source.length)];
+}
+
 function populateCategories() {
   const names = Object.keys(categories).sort((a, b) => a.localeCompare(b, 'es'));
   const selects = [categorySelect, onlineCategorySelect].filter(Boolean);
   selects.forEach((select) => {
     select.innerHTML = '';
+    const randomOption = document.createElement('option');
+    randomOption.value = '__random__';
+    randomOption.textContent = 'Aleatoria (sorpresa)';
+    select.appendChild(randomOption);
     for (const name of names) {
       const option = document.createElement('option');
       option.value = name;
       option.textContent = `${name} (${categories[name].length})`;
       select.appendChild(option);
     }
+    select.value = '__random__';
   });
+}
+
+function updateOnlineLayoutClasses() {
+  if (!bodyElement) {
+    return;
+  }
+  bodyElement.classList.toggle('mode-online', appState.mode === 'online');
+  const engaged =
+    appState.mode === 'online' &&
+    ((onlineHostCard && !onlineHostCard.classList.contains('hidden')) ||
+      (onlinePlayerCard && !onlinePlayerCard.classList.contains('hidden')));
+  bodyElement.classList.toggle('online-engaged', Boolean(engaged));
+}
+
+function chooseRandomCategory(select) {
+  if (!select) {
+    return null;
+  }
+  const options = Array.from(select.options).filter(
+    (option) => option.value && option.value !== '__random__'
+  );
+  if (options.length === 0) {
+    return null;
+  }
+  const choice = options[Math.floor(Math.random() * options.length)];
+  select.value = choice.value;
+  select.dispatchEvent(new Event('change'));
+  return choice.value;
 }
 
 function createPlayerInput(index) {
@@ -1837,12 +1914,22 @@ function getPlayerNames() {
 function startRound(event) {
   event.preventDefault();
   const players = Math.max(3, parseInt(playersInput.value, 10));
-  const category = categorySelect.value;
+  const requestedCategory = categorySelect.value;
   syncPlayerInputs(players);
   const names = getPlayerNames();
 
-  if (!category) {
+  if (!requestedCategory) {
     alert('Selecciona una categoría para comenzar.');
+    return;
+  }
+
+  const chosenCategory =
+    requestedCategory === '__random__' || !categories[requestedCategory]
+      ? getRandomCategoryName()
+      : requestedCategory;
+
+  if (!chosenCategory) {
+    alert('No hay categorías disponibles.');
     return;
   }
 
@@ -1871,12 +1958,12 @@ function startRound(event) {
   state.votingIndex = 0;
   state.votingOrder = [];
   state.secretWord = null;
-  state.category = category;
+  state.category = chosenCategory;
   state.roundResolved = false;
   state.activePlayers = new Set();
   state.eliminated = new Set();
 
-  const pool = categories[category];
+  const pool = categories[chosenCategory];
   const secretWord = pool[Math.floor(Math.random() * pool.length)];
   const impostorIndex = Math.floor(Math.random() * players);
 
@@ -1902,7 +1989,7 @@ function startRound(event) {
     `Pasa el dispositivo a <span id="current-player">${firstPlayerName}</span>. Cuando esté listo, presiona "Mostrar" para revelar su rol. Después presiona "Ocultar" y pasa el dispositivo.`;
   currentPlayerSpan = document.getElementById('current-player');
 
-  roundCategory.textContent = category;
+  roundCategory.textContent = chosenCategory;
 
   voteIntro.textContent = 'Cuando terminen de debatir, inicien la votación secreta.';
   startVoteButton.disabled = true;
@@ -2156,6 +2243,20 @@ function pushMessage(container, text, type = 'info') {
   message.className = `message ${type}`;
   message.textContent = text;
   container.prepend(message);
+  const lifetime = type === 'error' ? 10000 : 6500;
+  const scheduleDismiss = () => {
+    message.classList.add('dismissed');
+  };
+  const timer = typeof window !== 'undefined' ? window.setTimeout(scheduleDismiss, lifetime) : null;
+  message.addEventListener('click', scheduleDismiss);
+  message.addEventListener('transitionend', (event) => {
+    if (event.propertyName === 'opacity' && message.classList.contains('dismissed')) {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      message.remove();
+    }
+  });
   const maxMessages = 6;
   while (container.children.length > maxMessages) {
     container.removeChild(container.lastChild);
@@ -2200,6 +2301,12 @@ function resetHostUi() {
   if (hostMessages) {
     hostMessages.innerHTML = '';
   }
+  if (hostRestartButton) {
+    hostRestartButton.classList.add('hidden');
+    hostRestartButton.disabled = true;
+  }
+  resetHostPlayerView();
+  hideHostVotePanel();
 }
 
 function resetPlayerUi() {
@@ -2262,6 +2369,13 @@ function cleanupOnlineState() {
   onlineState.role = null;
   onlineState.hostName = '';
   onlineState.roomCode = '';
+  onlineState.hostId = null;
+  onlineState.hostRole = null;
+  onlineState.hostWord = null;
+  onlineState.hostImage = null;
+  onlineState.hostReveal = false;
+  onlineState.hostIsPlaying = true;
+  onlineState.roundsPlayed = 0;
   onlineState.players = [];
   onlineState.activePlayers.clear();
   onlineState.eliminated.clear();
@@ -2319,6 +2433,7 @@ function cleanupOnlineState() {
   if (onlinePlayerCard) {
     onlinePlayerCard.classList.add('hidden');
   }
+  updateOnlineLayoutClasses();
 }
 
 function switchGameMode(mode) {
@@ -2349,6 +2464,7 @@ function switchGameMode(mode) {
   }
 
   appState.mode = mode;
+  updateOnlineLayoutClasses();
 }
 
 function showHostSetup() {
@@ -2365,6 +2481,7 @@ function showHostSetup() {
   if (!onlineState.peer) {
     resetHostUi();
   }
+  updateOnlineLayoutClasses();
 }
 
 function showJoinSetup() {
@@ -2379,6 +2496,7 @@ function showJoinSetup() {
     onlineJoinSetup.classList.remove('hidden');
   }
   resetPlayerUi();
+  updateOnlineLayoutClasses();
 }
 
 function getPlayerNameById(id) {
@@ -2401,10 +2519,255 @@ function broadcastPlayerList() {
       id: player.id,
       name: player.name,
       eliminated: onlineState.eliminated.has(player.id),
-      connected: player.connected
+      connected: player.connected,
+      isHost: Boolean(player.isHost)
     }))
   };
   broadcast(payload);
+}
+
+function getHostSocketId() {
+  if (onlineState.hostId) {
+    return onlineState.hostId;
+  }
+  if (onlineState.peer && onlineState.peer.socket && onlineState.peer.socket.id) {
+    onlineState.hostId = onlineState.peer.socket.id;
+    return onlineState.hostId;
+  }
+  return null;
+}
+
+function ensureHostPlayer() {
+  const hostId = getHostSocketId();
+  if (!hostId) {
+    return;
+  }
+  const displayName = onlineState.hostName || 'Anfitrión';
+  let hostEntry = onlineState.players.find((player) => player.id === hostId);
+  if (!hostEntry) {
+    hostEntry = { id: hostId, name: displayName, connected: true, isHost: true };
+    onlineState.players.push(hostEntry);
+  } else {
+    hostEntry.name = displayName;
+    hostEntry.connected = true;
+    hostEntry.isHost = true;
+  }
+  if (!onlineState.roundActive) {
+    onlineState.activePlayers.add(hostId);
+    onlineState.eliminated.delete(hostId);
+  }
+  updateHostControls();
+  broadcastPlayerList();
+}
+
+function resetHostPlayerView() {
+  if (hostPlayerPanel) {
+    hostPlayerPanel.classList.add('hidden');
+  }
+  if (hostRoleText) {
+    hostRoleText.textContent = '';
+  }
+  if (hostToggleWordButton) {
+    hostToggleWordButton.classList.remove('hidden');
+    hostToggleWordButton.textContent = 'Mostrar';
+    hostToggleWordButton.disabled = false;
+  }
+  if (hostWordWrapper) {
+    hostWordWrapper.classList.add('hidden');
+  }
+  if (hostWordDisplay) {
+    hostWordDisplay.textContent = '';
+  }
+  if (hostWordImage) {
+    hostWordImage.removeAttribute('src');
+    hostWordImage.alt = '';
+  }
+  if (hostWordCaption) {
+    hostWordCaption.textContent = '';
+  }
+  if (hostVotePanel) {
+    hostVotePanel.classList.add('hidden');
+  }
+  if (hostVoteChoice) {
+    hostVoteChoice.innerHTML = '';
+    hostVoteChoice.disabled = false;
+  }
+  if (hostVoteForm) {
+    const submit = hostVoteForm.querySelector('button[type="submit"]');
+    if (submit) {
+      submit.disabled = false;
+    }
+  }
+  if (hostVoteInstructions) {
+    hostVoteInstructions.textContent = '';
+  }
+  onlineState.hostRole = null;
+  onlineState.hostWord = null;
+  onlineState.hostImage = null;
+  onlineState.hostReveal = false;
+}
+
+function applyHostImage() {
+  if (!hostWordVisual || !hostWordImage || !hostWordCaption) {
+    return;
+  }
+  if (!onlineState.hostImage) {
+    hostWordVisual.classList.add('hidden');
+    hostWordImage.removeAttribute('src');
+    hostWordCaption.textContent = '';
+    return;
+  }
+  const { url, caption, alt } = onlineState.hostImage;
+  hostWordImage.onerror = () => {
+    hostWordImage.onerror = null;
+    hostWordVisual.classList.add('hidden');
+  };
+  hostWordImage.src = url;
+  hostWordImage.alt = alt || onlineState.hostWord || 'Referencia visual';
+  hostWordCaption.textContent = caption || '';
+  hostWordVisual.classList.remove('hidden');
+}
+
+function renderHostRolePrompt() {
+  if (!hostPlayerPanel) {
+    return;
+  }
+
+  if (!onlineState.roundActive || !onlineState.hostIsPlaying) {
+    hostPlayerPanel.classList.add('hidden');
+    return;
+  }
+
+  const hostId = getHostSocketId();
+  const isActive = hostId && onlineState.activePlayers.has(hostId);
+
+  hostPlayerPanel.classList.remove('hidden');
+
+  if (!isActive) {
+    if (hostRoleText) {
+      hostRoleText.textContent = 'Fuiste eliminado. Observá cómo se resuelve la ronda.';
+    }
+    if (hostToggleWordButton) {
+      hostToggleWordButton.classList.add('hidden');
+    }
+    if (hostWordWrapper) {
+      hostWordWrapper.classList.add('hidden');
+    }
+    return;
+  }
+
+  if (onlineState.hostRole === 'impostor') {
+    if (hostRoleText) {
+      hostRoleText.textContent = 'Sos el impostor. Fingí conocer la palabra y evitá que te descubran.';
+    }
+    if (hostToggleWordButton) {
+      hostToggleWordButton.classList.add('hidden');
+    }
+    if (hostWordWrapper) {
+      hostWordWrapper.classList.add('hidden');
+    }
+    return;
+  }
+
+  if (hostRoleText) {
+    hostRoleText.textContent = 'Tocá “Mostrar” para ver tu pista secreta.';
+  }
+  if (hostToggleWordButton) {
+    hostToggleWordButton.classList.remove('hidden');
+    hostToggleWordButton.textContent = onlineState.hostReveal ? 'Ocultar' : 'Mostrar';
+  }
+  if (!hostWordWrapper) {
+    return;
+  }
+  if (onlineState.hostReveal) {
+    hostWordWrapper.classList.remove('hidden');
+    if (hostWordDisplay) {
+      hostWordDisplay.textContent = onlineState.hostWord || '';
+    }
+    applyHostImage();
+  } else {
+    hostWordWrapper.classList.add('hidden');
+  }
+}
+
+function toggleHostWord() {
+  if (!onlineState.roundActive || onlineState.hostRole === 'impostor') {
+    return;
+  }
+  onlineState.hostReveal = !onlineState.hostReveal;
+  renderHostRolePrompt();
+}
+
+function hideHostVotePanel() {
+  if (hostVotePanel) {
+    hostVotePanel.classList.add('hidden');
+  }
+  if (hostVoteChoice) {
+    hostVoteChoice.innerHTML = '';
+    hostVoteChoice.disabled = false;
+  }
+  if (hostVoteForm) {
+    const submit = hostVoteForm.querySelector('button[type="submit"]');
+    if (submit) {
+      submit.disabled = false;
+    }
+  }
+}
+
+function showHostVotePanel(options) {
+  const hostId = getHostSocketId();
+  if (!hostVotePanel || !hostVoteChoice || !hostId || !onlineState.activePlayers.has(hostId)) {
+    hideHostVotePanel();
+    return;
+  }
+
+  hostVotePanel.classList.remove('hidden');
+  hostVoteChoice.innerHTML = '';
+
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = 'Elegí a un jugador';
+  placeholder.disabled = true;
+  placeholder.selected = true;
+  hostVoteChoice.appendChild(placeholder);
+
+  (options || [])
+    .filter((option) => option.id !== hostId)
+    .forEach((option) => {
+      const element = document.createElement('option');
+      element.value = option.id;
+      element.textContent = option.name;
+      hostVoteChoice.appendChild(element);
+    });
+
+  if (hostVoteInstructions) {
+    hostVoteInstructions.textContent = 'Seleccioná al jugador que querés acusar. Tu voto es confidencial.';
+  }
+  if (hostVoteLabel) {
+    hostVoteLabel.textContent = '¿A quién acusás?';
+  }
+}
+
+function prepareHostRoundView() {
+  if (!onlineState.hostIsPlaying) {
+    resetHostPlayerView();
+    return;
+  }
+  const hostId = getHostSocketId();
+  if (!hostId) {
+    return;
+  }
+  const isActive = onlineState.activePlayers.has(hostId);
+  if (!isActive) {
+    renderHostRolePrompt();
+    return;
+  }
+  const isImpostor = hostId === onlineState.impostorId;
+  onlineState.hostRole = isImpostor ? 'impostor' : 'ciudadano';
+  onlineState.hostWord = isImpostor ? null : onlineState.secretWord;
+  onlineState.hostImage = isImpostor ? null : onlineState.image;
+  onlineState.hostReveal = false;
+  renderHostRolePrompt();
 }
 
 function updateHostControls() {
@@ -2419,24 +2782,36 @@ function updateHostControls() {
     nameSpan.textContent = player.name;
     item.appendChild(nameSpan);
 
-    const tag = document.createElement('span');
-    tag.classList.add('player-tag');
+    const badges = document.createElement('div');
+    badges.classList.add('player-badges');
+
+    const statusTag = document.createElement('span');
+    statusTag.classList.add('player-tag');
 
     if (!player.connected) {
-      tag.classList.add('offline');
-      tag.textContent = 'Desconectado';
+      statusTag.classList.add('offline');
+      statusTag.textContent = 'Desconectado';
     } else if (onlineState.roundActive && onlineState.eliminated.has(player.id)) {
-      tag.classList.add('eliminated');
-      tag.textContent = 'Eliminado';
+      statusTag.classList.add('eliminated');
+      statusTag.textContent = 'Eliminado';
     } else if (onlineState.roundActive) {
-      tag.classList.add('active');
-      tag.textContent = 'En juego';
+      statusTag.classList.add('active');
+      statusTag.textContent = 'En juego';
     } else {
-      tag.classList.add('active');
-      tag.textContent = 'Disponible';
+      statusTag.classList.add('active');
+      statusTag.textContent = 'Disponible';
     }
 
-    item.appendChild(tag);
+    badges.appendChild(statusTag);
+
+    if (player.isHost) {
+      const hostBadge = document.createElement('span');
+      hostBadge.classList.add('player-tag', 'host');
+      hostBadge.textContent = 'Anfitrión';
+      badges.appendChild(hostBadge);
+    }
+
+    item.appendChild(badges);
     hostPlayerList.appendChild(item);
   });
 
@@ -2465,6 +2840,16 @@ function updateHostControls() {
       hostEndRoundButton.classList.remove('hidden');
     } else {
       hostEndRoundButton.classList.add('hidden');
+    }
+  }
+
+  if (hostRestartButton) {
+    if (onlineState.roundActive || onlineState.roundsPlayed === 0) {
+      hostRestartButton.classList.add('hidden');
+      hostRestartButton.disabled = true;
+    } else {
+      hostRestartButton.classList.remove('hidden');
+      hostRestartButton.disabled = hostStartRoundButton ? hostStartRoundButton.disabled : false;
     }
   }
 }
@@ -2648,6 +3033,9 @@ function initializeHostPeer() {
       if (onlineHostCard) {
         onlineHostCard.classList.remove('hidden');
       }
+      resetHostPlayerView();
+      ensureHostPlayer();
+      updateOnlineLayoutClasses();
       if (chooseHostButton) {
         chooseHostButton.disabled = true;
       }
@@ -2687,11 +3075,27 @@ function startHostRound() {
     return;
   }
 
-  const category = onlineCategorySelect.value;
-  if (!category) {
+  const requestedCategory = onlineCategorySelect.value;
+  if (!requestedCategory) {
     pushMessage(hostMessages, 'Seleccioná una categoría antes de iniciar.', 'error');
     return;
   }
+
+  const category =
+    requestedCategory === '__random__' || !categories[requestedCategory]
+      ? getRandomCategoryName()
+      : requestedCategory;
+
+  if (!category) {
+    pushMessage(hostMessages, 'No hay categorías disponibles.', 'error');
+    return;
+  }
+
+  if (requestedCategory === '__random__') {
+    onlineCategorySelect.value = category;
+  }
+
+  ensureHostPlayer();
 
   const connectedPlayers = onlineState.players.filter((player) => player.connected);
   if (connectedPlayers.length < 3) {
@@ -2710,6 +3114,7 @@ function startHostRound() {
 
   onlineState.activePlayers = new Set(connectedPlayers.map((player) => player.id));
   onlineState.awaitingVotes = onlineState.activePlayers.size;
+  hideHostVotePanel();
 
   const pool = categories[category];
   const secretWord = pool[Math.floor(Math.random() * pool.length)];
@@ -2732,6 +3137,8 @@ function startHostRound() {
   if (hostRoundImpostor) {
     hostRoundImpostor.textContent = impostor.name;
   }
+
+  prepareHostRoundView();
 
   pushMessage(hostMessages, `Ronda iniciada con ${connectedPlayers.length} jugadores conectados.`, 'info');
   if (onlineState.image) {
@@ -2805,6 +3212,7 @@ function openHostVoting() {
   }));
 
   broadcast({ type: 'vote-open', options });
+  showHostVotePanel(options);
   pushMessage(hostMessages, 'Votación abierta. Esperando votos secretos...', 'info');
 }
 
@@ -2823,6 +3231,9 @@ function handleIncomingVote(peerId, payload) {
     if (connection && connection.open) {
       connection.send({ type: 'vote-rejected', reason: 'El jugador seleccionado no está disponible.' });
     }
+    if (peerId === onlineState.hostId) {
+      pushMessage(hostMessages, 'Elegí un jugador válido para votar.', 'error');
+    }
     return;
   }
 
@@ -2831,6 +3242,20 @@ function handleIncomingVote(peerId, payload) {
   const connection = onlineState.connections.get(peerId);
   if (connection && connection.open) {
     connection.send({ type: 'vote-confirmed' });
+  } else if (peerId === onlineState.hostId) {
+    pushMessage(hostMessages, 'Tu voto quedó registrado.', 'success');
+    if (hostVoteChoice) {
+      hostVoteChoice.disabled = true;
+    }
+    if (hostVoteForm) {
+      const submit = hostVoteForm.querySelector('button[type="submit"]');
+      if (submit) {
+        submit.disabled = true;
+      }
+    }
+    if (hostVoteInstructions) {
+      hostVoteInstructions.textContent = 'Voto enviado. Esperá los resultados del resto.';
+    }
   }
 
   if (onlineState.votes.size >= onlineState.awaitingVotes) {
@@ -2840,6 +3265,7 @@ function handleIncomingVote(peerId, payload) {
 
 function resolveHostVote() {
   onlineState.votingOpen = false;
+  hideHostVotePanel();
 
   const tally = new Map();
   onlineState.votes.forEach((vote) => {
@@ -2903,6 +3329,10 @@ function resolveHostVote() {
 
   onlineState.activePlayers.delete(eliminatedId);
   onlineState.eliminated.add(eliminatedId);
+  if (eliminatedId === onlineState.hostId) {
+    onlineState.hostReveal = false;
+    renderHostRolePrompt();
+  }
   broadcastPlayerList();
 
   if (onlineState.activePlayers.size <= 2) {
@@ -2952,8 +3382,12 @@ function endHostRound(summary, impostorCaught) {
     hostRoundInfo.classList.remove('hidden');
   }
 
+  hideHostVotePanel();
+  resetHostPlayerView();
+
   onlineState.roundActive = false;
   onlineState.votingOpen = false;
+  onlineState.roundsPlayed += 1;
   onlineState.activePlayers = new Set(
     onlineState.players.filter((player) => player.connected).map((player) => player.id)
   );
@@ -3031,6 +3465,7 @@ function handlePlayerDisconnected(message, type = 'warning') {
   onlineState.playerWord = null;
   onlineState.playerImage = null;
   onlineState.playerReveal = false;
+  updateOnlineLayoutClasses();
 }
 
 function handleJoinAccepted(payload) {
@@ -3055,6 +3490,7 @@ function handleJoinAccepted(payload) {
   }
 
   pushMessage(playerMessages, 'Conectado correctamente. Esperá a que comience la ronda.', 'success');
+  updateOnlineLayoutClasses();
 }
 
 function handleRoundStart(payload) {
@@ -3406,6 +3842,21 @@ if (chooseJoinButton) {
   chooseJoinButton.addEventListener('click', showJoinSetup);
 }
 
+if (hostNameInput) {
+  hostNameInput.addEventListener('input', () => {
+    onlineState.hostName = hostNameInput.value.trim();
+    if (hostDisplayName) {
+      const display = onlineState.hostName
+        ? `Anfitrión: ${onlineState.hostName}`
+        : 'Anfitrión listo para jugar';
+      hostDisplayName.textContent = display;
+    }
+    if (onlineState.role === 'host') {
+      ensureHostPlayer();
+    }
+  });
+}
+
 if (createRoomButton) {
   createRoomButton.addEventListener('click', initializeHostPeer);
 }
@@ -3420,6 +3871,10 @@ if (copyRoomButton) {
 
 if (hostStartRoundButton) {
   hostStartRoundButton.addEventListener('click', startHostRound);
+}
+
+if (hostRestartButton) {
+  hostRestartButton.addEventListener('click', startHostRound);
 }
 
 if (hostOpenVoteButton) {
@@ -3439,6 +3894,10 @@ if (joinForm) {
   joinForm.addEventListener('submit', joinRoom);
 }
 
+if (hostToggleWordButton) {
+  hostToggleWordButton.addEventListener('click', toggleHostWord);
+}
+
 if (playerToggleWordButton) {
   playerToggleWordButton.addEventListener('click', togglePlayerWord);
 }
@@ -3447,8 +3906,40 @@ if (playerVoteForm) {
   playerVoteForm.addEventListener('submit', submitPlayerVote);
 }
 
+if (hostVoteForm) {
+  hostVoteForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!hostVoteChoice || !hostVoteChoice.value) {
+      if (hostVoteChoice && hostVoteChoice.reportValidity) {
+        hostVoteChoice.reportValidity();
+      }
+      return;
+    }
+    const hostId = getHostSocketId();
+    if (!hostId) {
+      return;
+    }
+    handleIncomingVote(hostId, { targetId: hostVoteChoice.value });
+  });
+}
+
 if (playerLeaveButton) {
   playerLeaveButton.addEventListener('click', leaveRoom);
+}
+
+if (localRandomCategoryButton) {
+  localRandomCategoryButton.addEventListener('click', () => {
+    chooseRandomCategory(categorySelect);
+  });
+}
+
+if (onlineRandomCategoryButton) {
+  onlineRandomCategoryButton.addEventListener('click', () => {
+    const choice = chooseRandomCategory(onlineCategorySelect);
+    if (choice) {
+      pushMessage(hostMessages, `Categoría aleatoria seleccionada: ${choice}.`, 'info');
+    }
+  });
 }
 
 window.addEventListener('beforeunload', () => {
