@@ -1,31 +1,35 @@
 import { io } from "socket.io-client";
 
-const SERVER_URL = process.env.SERVER_URL || "https://impostorx-server.onrender.com";
+// 🔹 URL del backend (Render)
+const SERVER_URL = "https://impostorr.onrender.com"; // 👈 Usá el dominio real del backend
+
+// 🔹 Inicialización del socket
 const socket = io(SERVER_URL, {
   autoConnect: true,
-  transports: ["websocket"],
+  transports: ["websocket"], // fuerza WebSocket, evita polling
 });
 
-// Utilidades de logging
+// 🔹 Logger simple para consola
 function log(event, payload) {
-  console.log(`[Cliente] ${event}`, payload);
+  console.log(`[Cliente] ${event}`, payload || "");
 }
 
-socket.on("connect", () => {
-  log("Conectado", { id: socket.id });
-});
+// -----------------------------
+// EVENTOS DEL SERVIDOR
+// -----------------------------
+socket.on("connect", () => log("✅ Conectado", { id: socket.id }));
+socket.on("disconnect", (reason) => log("❌ Desconectado", { reason }));
 
-socket.on("disconnect", (reason) => {
-  log("Desconectado", { reason });
-});
+socket.on("salaCreada", (data) => log("🎮 Sala Creada", data));
+socket.on("jugadorUnido", (data) => log("👥 Jugador Unido", data));
+socket.on("mensaje", (data) => log("💬 Mensaje", data));
+socket.on("salir", (data) => log("🚪 Jugador Salió", data));
+socket.on("salaCerrada", (data) => log("🔒 Sala Cerrada", data));
+socket.on("errorSala", (data) => log("⚠️ Error de Sala", data));
 
-socket.on("salaCreada", (data) => log("salaCreada", data));
-socket.on("jugadorUnido", (data) => log("jugadorUnido", data));
-socket.on("mensaje", (data) => log("mensaje", data));
-socket.on("salir", (data) => log("salir", data));
-socket.on("salaCerrada", (data) => log("salaCerrada", data));
-socket.on("errorSala", (data) => log("errorSala", data));
-
+// -----------------------------
+// FUNCIONES DE CLIENTE
+// -----------------------------
 export function crearSala(nombre) {
   socket.emit("crearSala", { nombre });
   log("crearSala emitido", { nombre });
