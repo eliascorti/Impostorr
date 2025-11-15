@@ -26,6 +26,7 @@ Además del modo clásico en un solo dispositivo, la página ofrece un modo en l
 4. Desde otros dispositivos, abre la página, elige **En línea → Unirse a sala**, escribe el código y tu nombre. Cada jugador verá su palabra en privado desde su celular y podrá votar desde ahí.
 5. El anfitrión controla el inicio de las rondas, también recibe su rol en un panel privado (puede jugar y votar como cualquier participante) y puede abrir votaciones sucesivas hasta atrapar al impostor o quedar solo dos jugadores. Los resultados y eliminaciones se sincronizan automáticamente usando eventos de Socket.IO.
 6. Tras cada partida, el anfitrión dispone del botón **Volver a jugar** para lanzar la siguiente ronda con la categoría que prefiera (incluido el modo aleatorio), mientras el resto de jugadores recibe el resumen final en sus dispositivos.
+7. Cada invitado ve un panel personal con su nombre, estado actual (esperando, votando, victoria/derrota) y la lista viva de jugadores conectados, incluyendo el anfitrión y quién fue eliminado. Para mantener el foco, cuando estás dentro de una sala desaparecen automáticamente las instrucciones generales y los formularios iniciales.
 
 ```html
 <script>

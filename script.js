@@ -1561,6 +1561,10 @@ const hostMessages = document.getElementById('host-messages');
 
 const onlinePlayerCard = document.getElementById('online-player-card');
 const playerCardTitle = document.getElementById('player-card-title');
+const playerIdentity = document.getElementById('player-identity');
+const playerDisplayName = document.getElementById('player-display-name');
+const playerRoomCodeLabel = document.getElementById('player-room-code');
+const playerStatusChip = document.getElementById('player-status-chip');
 const playerMessages = document.getElementById('player-messages');
 const playerRolePanel = document.getElementById('player-role-panel');
 const playerRoleText = document.getElementById('player-role-text');
@@ -1575,6 +1579,9 @@ const playerVoteInstructions = document.getElementById('player-vote-instructions
 const playerVoteForm = document.getElementById('player-vote-form');
 const playerVoteChoice = document.getElementById('player-vote-choice');
 const playerVoteLabel = document.getElementById('player-vote-label');
+const playerLobby = document.getElementById('player-lobby');
+const playerLobbyList = document.getElementById('player-lobby-list');
+const playerLobbyEmpty = document.getElementById('player-lobby-empty');
 const playerLeaveButton = document.getElementById('player-leave');
 const hostPlayerPanel = document.getElementById('host-player-panel');
 const hostRoleText = document.getElementById('host-role-text');
@@ -2345,6 +2352,87 @@ function resetPlayerUi() {
   if (playerLeaveButton) {
     playerLeaveButton.disabled = true;
   }
+  if (playerStatusChip) {
+    playerStatusChip.className = 'status-chip';
+    playerStatusChip.textContent = '';
+  }
+}
+
+function updatePlayerIdentity(name = '', roomCode = '') {
+  if (!playerIdentity) {
+    return;
+  }
+  if (name || roomCode) {
+    playerIdentity.classList.remove('hidden');
+  } else {
+    playerIdentity.classList.add('hidden');
+  }
+  if (playerDisplayName) {
+    playerDisplayName.textContent = name;
+  }
+  if (playerRoomCodeLabel) {
+    playerRoomCodeLabel.textContent = roomCode ? `Sala ${roomCode}` : '';
+  }
+}
+
+function setPlayerStatus(label, variant = 'info') {
+  if (!playerStatusChip) {
+    return;
+  }
+  const normalized = label ? variant : '';
+  playerStatusChip.textContent = label;
+  playerStatusChip.className = normalized ? `status-chip ${normalized}` : 'status-chip';
+  if (label) {
+    playerStatusChip.classList.remove('hidden');
+  } else {
+    playerStatusChip.classList.add('hidden');
+  }
+}
+
+function renderPlayerLobby(players = []) {
+  if (!playerLobby || !playerLobbyList) {
+    return;
+  }
+  if (!players.length) {
+    playerLobby.classList.add('hidden');
+    playerLobbyList.innerHTML = '';
+    if (playerLobbyEmpty) {
+      playerLobbyEmpty.classList.remove('hidden');
+    }
+    return;
+  }
+  playerLobby.classList.remove('hidden');
+  playerLobbyList.innerHTML = '';
+  const selfId = onlineState.playerId;
+  players.forEach((player) => {
+    const item = document.createElement('li');
+    item.className = 'player-lobby-item';
+    if (player.id === selfId) {
+      item.classList.add('is-self');
+    }
+    const name = document.createElement('span');
+    name.textContent = player.name || 'Jugador';
+    item.appendChild(name);
+    const pill = document.createElement('span');
+    pill.className = 'pill';
+    if (!player.connected) {
+      pill.classList.add('offline');
+      pill.textContent = 'Fuera de línea';
+    } else if (player.eliminated) {
+      pill.classList.add('eliminated');
+      pill.textContent = 'Eliminado';
+    } else {
+      pill.textContent = 'Activo';
+    }
+    if (player.isHost) {
+      pill.classList.add('host');
+    }
+    item.appendChild(pill);
+    playerLobbyList.appendChild(item);
+  });
+  if (playerLobbyEmpty) {
+    playerLobbyEmpty.classList.toggle('hidden', playerLobbyList.children.length > 0);
+  }
 }
 
 function cleanupOnlineState() {
@@ -2394,6 +2482,10 @@ function cleanupOnlineState() {
   onlineState.playerWord = null;
   onlineState.playerImage = null;
   onlineState.playerReveal = false;
+
+  updatePlayerIdentity('', '');
+  setPlayerStatus('', 'info');
+  renderPlayerLobby([]);
 
   if (roomDetails) {
     roomDetails.classList.add('hidden');
@@ -3441,6 +3533,17 @@ function handlePlayerDisconnected(message, type = 'warning') {
     onlinePlayerCard.classList.remove('hidden');
   }
   resetPlayerUi();
+  updatePlayerIdentity('', '');
+  setPlayerStatus('Desconectado', 'danger');
+  if (playerLobbyList) {
+    playerLobbyList.innerHTML = '';
+  }
+  if (playerLobbyEmpty) {
+    playerLobbyEmpty.classList.remove('hidden');
+  }
+  if (playerLobby) {
+    playerLobby.classList.add('hidden');
+  }
   pushMessage(playerMessages, message, type);
   if (onlineState.playerConnection && onlineState.playerConnection.open) {
     try {
@@ -3482,6 +3585,7 @@ function handleJoinAccepted(payload) {
   if (playerCardTitle) {
     playerCardTitle.textContent = `Sala ${payload.roomCode}`;
   }
+  updatePlayerIdentity(payload.name, payload.roomCode);
   if (onlinePlayerCard) {
     onlinePlayerCard.classList.remove('hidden');
   }
@@ -3490,6 +3594,7 @@ function handleJoinAccepted(payload) {
   }
 
   pushMessage(playerMessages, 'Conectado correctamente. Esperá a que comience la ronda.', 'success');
+  setPlayerStatus('En sala', 'success');
   updateOnlineLayoutClasses();
 }
 
@@ -3507,6 +3612,7 @@ function handleRoundStart(payload) {
   const message = payload.category
     ? `Nueva ronda: categoría ${payload.category}.` : 'Nueva ronda en marcha.';
   pushMessage(playerMessages, message, 'info');
+  setPlayerStatus('Ronda en curso', 'info');
 }
 
 function handleAssignment(payload) {
@@ -3526,11 +3632,13 @@ function handleAssignment(payload) {
     playerRoleText.textContent = 'Sos el impostor. Fingí conocer la palabra y evitá que te descubran.';
     playerToggleWordButton.classList.add('hidden');
     playerWordWrapper.classList.add('hidden');
+    setPlayerStatus('Rol asignado', 'warning');
   } else {
     playerRoleText.textContent = 'Tocá “Mostrar” para ver la palabra secreta en tu dispositivo.';
     playerToggleWordButton.classList.remove('hidden');
     playerToggleWordButton.textContent = 'Mostrar';
     playerWordWrapper.classList.add('hidden');
+    setPlayerStatus('Rol asignado', 'accent');
   }
 }
 
@@ -3603,6 +3711,7 @@ function handleVoteOpen(payload) {
     playerVoteInstructions.textContent = 'Seleccioná en secreto a quién acusás.';
   }
   pushMessage(playerMessages, 'Es tu turno de votar. Elegí a quién querés acusar.', 'info');
+  setPlayerStatus('Votando', 'warning');
 }
 
 function submitPlayerVote(event) {
@@ -3654,6 +3763,7 @@ function handleVoteResult(payload) {
   }
 
   pushMessage(playerMessages, message, tone);
+  setPlayerStatus('Esperando resultados', 'info');
 }
 
 function handleRoundEnd(payload) {
@@ -3662,6 +3772,21 @@ function handleRoundEnd(payload) {
     ? `${payload.impostorName} era el impostor. La palabra secreta era "${payload.secretWord}".`
     : '';
   pushMessage(playerMessages, `${base} ${detail}`.trim(), payload.impostorCaught ? 'success' : 'warning');
+  setPlayerStatus(payload.impostorCaught ? '¡Victoria!' : 'Intentalo de nuevo', payload.impostorCaught ? 'success' : 'warning');
+}
+
+function handlePlayerList(payload) {
+  if (!payload || !Array.isArray(payload.players)) {
+    renderPlayerLobby([]);
+    return;
+  }
+  renderPlayerLobby(payload.players);
+  if (onlineState.playerId) {
+    const self = payload.players.find((entry) => entry.id === onlineState.playerId);
+    if (self) {
+      updatePlayerIdentity(self.name || '', onlineState.roomCode || '');
+    }
+  }
 }
 
 function joinRoom(event) {
@@ -3754,7 +3879,7 @@ function handlePlayerData(payload) {
       handlePlayerDisconnected('No fue posible unirse a la sala.', 'error');
       break;
     case 'player-list':
-      // Optional: could show connected players in future.
+      handlePlayerList(payload);
       break;
     case 'round-start':
       handleRoundStart(payload);
